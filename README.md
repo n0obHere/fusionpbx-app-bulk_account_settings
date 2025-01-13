@@ -1,5 +1,5 @@
 # fusionpbx-app-bulk_account_settings
-Add addtiional options to the destinations select list.
+Bulk account settings make it faster and easier to change multiple settings at once.
 
 Install
 ```
