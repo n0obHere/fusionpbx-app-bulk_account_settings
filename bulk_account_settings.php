@@ -29,11 +29,7 @@
 	require_once "resources/check_auth.php";
 	require_once "resources/paging.php";
 
-//include the class
-	require_once "resources/check_auth.php";
-
 //check permissions
-	require_once "resources/check_auth.php";
 	if (permission_exists('bulk_account_settings_view')) {
 		//access granted
 	}
@@ -41,12 +37,11 @@
 		echo "access denied";
 		exit;
 	}
-	
+
 //add multi-lingual support
 	$language = new text;
 	$text = $language->get();
-	
-	
+
 //show the content
 	echo "<table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\">\n";
 	echo "  <tr>\n";
@@ -62,9 +57,8 @@
 	echo 				"<input type='button' class='btn' alt='".$text['button-voicemails']."' onclick=\"window.location='bulk_account_settings_voicemails.php'\" value='".$text['button-voicemails']."'>\n";
 //	echo 				"<input type='button' class='btn' alt='".$text['button-call_routing']."' onclick=\"window.location='bulk_account_settings_call_routing.php'\" value='".$text['button-call_routing']."'>\n";
 	echo "			</td>\n";
-	echo "		</form>\n";	
+	echo "		</form>\n";
 	echo "  </tr>\n";
 	echo "  </table>\n";
 //show the footer
 	require_once "resources/footer.php";
-?>

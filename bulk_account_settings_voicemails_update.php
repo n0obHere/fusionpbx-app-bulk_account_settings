@@ -24,13 +24,9 @@
 	KonradSC <konrd@yahoo.com>
 */
 
-//set the include path
-	$conf = glob("{/usr/local/etc,/etc}/fusionpbx/config.conf", GLOB_BRACE);
-	set_include_path(parse_ini_file($conf[0])['document.root']);
-
 //includes files
-	require_once "resources/require.php";
-	require_once "resources/check_auth.php";
+	require_once dirname(__DIR__, 2) . '/resources/require.php';
+	require_once dirname(__DIR__, 2) . '/resources/check_auth.php';
 
 //check permissions
 	if (permission_exists('bulk_account_settings_voicemails')) {
@@ -45,8 +41,39 @@
 	$language = new text;
 	$text = $language->get();
 
+//set domain and user uuids
+	$domain_uuid = $_SESSION['domain_uuid'] ?? '';
+	$user_uuid = $_SESSION['user_uuid'] ?? '';
+
+//set valid option and action choices
+	$voicemail_options = [];
+	$voicemail_options[] = 'voicemail_file';
+	$voicemail_options[] = 'voicemail_enabled';
+	$voicemail_options[] = 'voicemail_local_after_email';
+	$voicemail_options[] = 'voicemail_password';
+	$voicemail_options[] = 'voicemail_option_0';
+	$voicemail_options[] = 'voicemail_option_1';
+	$voicemail_options[] = 'voicemail_option_2';
+	$voicemail_options[] = 'voicemail_option_3';
+	$voicemail_options[] = 'voicemail_option_4';
+	$voicemail_options[] = 'voicemail_option_5';
+	$voicemail_options[] = 'voicemail_option_6';
+	$voicemail_options[] = 'voicemail_option_7';
+	$voicemail_options[] = 'voicemail_option_8';
+	$voicemail_options[] = 'voicemail_option_9';
+	$voicemail_options[] = 'voicemail_option_star';
+	if (permission_exists('bulk_account_settings_pound')) {
+		$voicemail_options[] = 'voicemail_option_pound';
+	}
+	$voicemail_actions = [];
+	$voicemail_actions[] = 'add';
+	$voicemail_actions[] = 'remove';
+
+//use connected database
+	$database = database::new(['config' => config::load(), 'domain_uuid' => $domain_uuid]);
+
 //check for the ids
-	if (is_array($_REQUEST) && sizeof($_REQUEST) > 0) {
+	if (!empty($_REQUEST)) {
 
 		$voicemail_uuids = $_REQUEST["id"];
 		$option_selected = $_REQUEST["option_selected"];
@@ -56,13 +83,23 @@
 		$voicemail_option_order = (int)$_REQUEST["voicemail_option_order"];
 		$voicemail_option_description = $_REQUEST["voicemail_option_description"];
 
+		//validate the option_selected
+		if (!empty($option_selected) && !in_array($option_selected, $voicemail_options, true)) {
+			die('invalid option');
+		}
+
+		//validate the option_action
+		if (!empty($option_action) && !in_array($option_action, $voicemail_actions, true)) {
+			die('invalid action');
+		}
+
 		//seperate the action and the param
 		$option_array = explode(":", $voicemail_option_param);
 		$voicemail_option_action = array_shift($option_array);
 		$voicemail_option_param = join(':', $option_array);
 		preg_match ('/voicemail_option_(.)/',$option_selected, $matches);
 		$voicemail_option_digits = $matches[1];
-		
+
 		foreach($voicemail_uuids as $voicemail_uuid) {
 			$voicemail_uuid = check_str($voicemail_uuid);
 			if ($voicemail_uuid != '') {
@@ -72,78 +109,82 @@
 					if ($option_action == 'add'){
 
 						$sql = "select * from v_voicemail_options ";
-						$sql .= "where domain_uuid = '".$_SESSION['domain_uuid']."' ";
-						$sql .= "and voicemail_uuid = '".$voicemail_uuid."' ";
-						$sql .= "and voicemail_option_digits = '".$voicemail_option_digits."' ";
-						$sql .= "and voicemail_option_order = '".$voicemail_option_order."' ";
-						$database = new database;
-						$voicemails = $database->select($sql, 'all');
-						unset ($database);
-						if (is_array($voicemails)) { 
-							foreach ($voicemails as &$row) {
+						$sql .= "where domain_uuid = :domain_uuid ";
+						$sql .= "and voicemail_uuid = :voicemail_uuid ";
+						$sql .= "and voicemail_option_digits = voicemail_option_digits ";
+						$sql .= "and voicemail_option_order = :voicemail_option_order ";
+						$parameters = [];
+						$parameters['domain_uuid'] = $domain_uuid;
+						$parameters['voicemail_uuid'] = $voicemail_uuid;
+						$parameters['voicemail_option_digits'] = $voicemail_option_digits;
+						$parameters['voicemail_option_order'] = $voicemail_option_order;
+						$voicemails = $database->select($sql, $parameters, 'all');
+						if (is_array($voicemails)) {
+							foreach ($voicemails as $row) {
 								$voicemail_option_uuid = $row["voicemail_option_uuid"];
 							}
-							unset ($prep_statement);
 						}
 						if (empty($voicemail_option_uuid)) {
 							$voicemail_option_uuid = uuid();
 						}
-						
+
 						$i=0;
 						$array["voicemail_options"][$i]["voicemail_option_uuid"] = $voicemail_option_uuid;
-						$array["voicemail_options"][$i]["domain_uuid"] = $_SESSION['domain_uuid'];
+						$array["voicemail_options"][$i]["domain_uuid"] = $domain_uuid;
 						$array["voicemail_options"][$i]["voicemail_uuid"] = $voicemail_uuid;
 						$array["voicemail_options"][$i]["voicemail_option_digits"] = $voicemail_option_digits;
 						$array["voicemail_options"][$i]["voicemail_option_description"] = $voicemail_option_description;
 						$array["voicemail_options"][$i]["voicemail_option_order"] = (int)$voicemail_option_order;
 						$array["voicemail_options"][$i]["voicemail_option_action"] = trim($voicemail_option_action);
 						$array["voicemail_options"][$i]["voicemail_option_param"] = trim($voicemail_option_param);
-						
-						$database = new database;
+
 						$database->app_name = 'bulk_account_settings';
-						$database->app_uuid = null;
+						$database->app_uuid = '6b4e03c9-c302-4eaa-b16d-e1c5c08a2eb7';
 						$database->save($array);
 						$message = $database->message;
-						
-						unset($database,$array,$i,$voicemail_option_uuid);	
+
+						unset($array,$i,$voicemail_option_uuid);
 
 					} elseif ($option_action == 'remove') {
 					//delete the voicemail option
 						$sql = "delete from v_voicemail_options ";
-						$sql .= "where domain_uuid = '".$_SESSION['domain_uuid']."' ";
-						$sql .= "and voicemail_uuid = '".$voicemail_uuid."' ";
-						$sql .= "and voicemail_option_digits = '".$voicemail_option_digits."' ";
-						$prep_statement = $db->prepare(check_sql($sql));
-						$prep_statement->execute();
-						unset($prep_statement, $sql);							
+						$sql .= "where domain_uuid = :domain_uuid ";
+						$sql .= "and voicemail_uuid = :voicemail_uuid ";
+						$sql .= "and voicemail_option_digits = :voicemail_option_digits ";
+						$parameters = [];
+						$parameters['domain_uuid'] = $domain_uuid;
+						$parameters['voicemail_uuid'] = $voicemail_uuid;
+						$parameters['voicemail_option_digits'] = $voicemail_option_digits;
+						$database->execute($sql, $parameters);
+						unset($parameters, $sql);
 					}
-					
+
 				} else {
-				//All other Voicemail properties	
+				//All other Voicemail properties
 				//get the voicemails array
 					$sql = "select * from v_voicemails ";
-					$sql .= "where domain_uuid = '".$_SESSION['domain_uuid']."' ";
-					$sql .= "and voicemail_uuid = '".$voicemail_uuid."' ";
-					$database = new database;
-					$voicemails = $database->select($sql, 'all');
-					if (is_array($voicemails)) { 
-						foreach ($voicemails as &$row) {
+					$sql .= "where domain_uuid = :domain_uuid ";
+					$sql .= "and voicemail_uuid = :voicemail_uuid ";
+					$parameters = [];
+					$parameters['domain_uuid'] = $domain_uuid;
+					$parameters['voicemail_uuid'] = $voicemail_uuid;
+					$voicemails = $database->select($sql, $parameters, 'all');
+					if (is_array($voicemails)) {
+						foreach ($voicemails as $row) {
 							$voicemail = $row["voicemail"];
 						}
-						unset ($prep_statement);
-					}
 
 						$array["voicemails"][$i]["domain_uuid"] = $domain_uuid;
 						$array["voicemails"][$i]["voicemail_uuid"] = $voicemail_uuid;
 						$array["voicemails"][$i][$option_selected] = $new_setting;
-	
-						$database = new database;
+
 						$database->app_name = 'bulk_account_settings';
-						$database->app_uuid = null;
+						$database->app_uuid = '6b4e03c9-c302-4eaa-b16d-e1c5c08a2eb7';
 						$database->save($array);
 						$message = $database->message;
 
-						unset($database,$array,$i);
+						unset($array,$i);
+					}
 				}
 			}
 		}
