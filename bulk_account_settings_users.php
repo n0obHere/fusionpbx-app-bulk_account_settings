@@ -38,71 +38,90 @@
 		echo "access denied";
 		exit;
 	}
-	
+
 //add multi-lingual support
 	$language = new text;
 	$text = $language->get();
 
+//use connected database
+	$domain_uuid = $_SESSION['domain_uuid'] ?? '';
+	$user_uuid = $_SESSION['user_uuid'] ?? '';
+	$database = database::new(['config' => config::load(), 'domain_uuid' => $domain_uuid]);
+	$settings = new settings(['database' => $database, 'domain_uuid' => $domain_uuid, 'user_uuid' => $user_uuid]);
+
 //set defaults
 	$user_ids = [];
+	$user_options = [];
+	$user_options[] = 'user_enabled';
+	$user_options[] = 'group';
+	$user_options[] = 'password';
+	$user_options[] = 'user_status';
+	$user_options[] = 'time_zone';
 
 //get the http values and set them as variables
 	$order_by = check_str($_GET["order_by"]);
 	$order = check_str($_GET["order"]);
 	$option_selected = check_str($_GET["option_selected"]);
-	
+
 //handle search term
+	$parameters = [];
+	$sql_mod = '';
 	$search = check_str($_GET["search"]);
 	if (strlen($search) > 0) {
-		$sql_mod = "and ( ";
-		$sql_mod .= "username ILIKE '%".$search."%' ";
-		$sql_mod .= "or user_enabled ILIKE '%".$search."%' ";		
-		$sql_mod .= "or user_status ILIKE '%".$search."%' ";
-		$sql_mod .= ") ";
+		$sql_mod = 'and ( ';
+		$sql_mod .= 'username ILIKE :search ';
+		$sql_mod .= 'or user_enabled ILIKE :search ';
+		$sql_mod .= 'or user_status ILIKE :search ';
+		$sql_mod .= ') ';
+		$parameters['search'] = '%'.$search.'%';
 	}
 	if (strlen($order_by) < 1) {
 		$order_by = "username";
 		$order = "ASC";
 	}
 
-	$domain_uuid = $_SESSION['domain_uuid'];
-	
 //get total extension count from the database
-	$sql = "select count(*) as num_rows from v_users where domain_uuid = '".$_SESSION['domain_uuid']."' ".$sql_mod." ";
-	$prep_statement = $db->prepare($sql);
-	if ($prep_statement) {
-		$prep_statement->execute();
-		$row = $prep_statement->fetch(PDO::FETCH_ASSOC);
-		$total_users = $row['num_rows'];
-		if (($db_type == "pgsql") or ($db_type == "mysql")) {
-			$numberic_users = $row['num_rows'];
-		}
-	}
-	unset($prep_statement, $row);
+	$sql = "select count(user_uuid) as num_rows from v_users where domain_uuid = :domain_uuid ";
+	$sql .= $sql_mod;
+	$parameters['domain_uuid'] = $domain_uuid;
+	$num_rows = $database->select($sql, $parameters, 'column');
 
 //prepare to page the results
-	$rows_per_page = ($_SESSION['domain']['paging']['numeric'] != '') ? $_SESSION['domain']['paging']['numeric'] : 50;
-	$param = "&search=".$search."&option_selected=".$option_selected;
-	if (!isset($_GET['page'])) { $_GET['page'] = 0; }
-	$_GET['page'] = check_str($_GET['page']);
-	list($paging_controls_mini, $rows_per_page, $var_3) = paging($total_users, $param, $rows_per_page, true); //top
-	list($paging_controls, $rows_per_page, $var_3) = paging($total_users, $param, $rows_per_page); //bottom
-	$offset = $rows_per_page * $_GET['page'];
+	$rows_per_page = $settings->get('domain', 'paging', 50);
+	if ($rows_per_page > 0) {
+		$param = "&search=".$search."&option_selected=".$option_selected;
+		if (!isset($_GET['page'])) { $_GET['page'] = 0; }
+		$_GET['page'] = check_str($_GET['page']);
+		list($paging_controls_mini, $rows_per_page, $var_3) = paging($total_users, $param, $rows_per_page, true); //top
+		list($paging_controls, $rows_per_page, $var_3) = paging($total_users, $param, $rows_per_page); //bottom
+		$offset = $rows_per_page * $_GET['page'];
+	}
 
 //get all the users from the database
-	$sql = "SELECT \n";
-	$sql .= "username, \n";
-	$sql .= "user_uuid, \n";
-	$sql .= "user_status, \n";
-	$sql .= "user_enabled \n";
-	$sql .= "FROM v_users \n";
-	$sql .= "WHERE domain_uuid = '$domain_uuid' and 1 = 1 \n";
-	$sql .= $sql_mod; //add search mod from above
-	$sql .= "ORDER BY ".$order_by." ".$order." \n";
-	$sql .= "limit $rows_per_page offset $offset ";
-	$database = new database;
-	$directory = $database->select($sql, 'all');
-	unset($database);
+	$parameters = [];
+	$sql = 'select ';
+	$sql .= 'username, ';
+	$sql .= 'user_uuid, ';
+	$sql .= 'user_status, ';
+	$sql .= 'user_enabled ';
+	$sql .= 'from v_users ';
+	$sql .= 'where 1=1 ';
+	$sql .= 'and domain_uuid = :domain_uuid ';
+	if (!empty($sql_mod)) {
+		$sql .= $sql_mod; //add search mod from above
+		$parameters['search'] = '%'.$search.'%';
+	}
+	if ($rows_per_page > 0) {
+		$sql .= "order by :order_by :order ";
+		$sql .= "limit $rows_per_page offset $offset ";
+		$parameters['order_by'] = $order_by;
+		$parameters['order'] = $order;
+	}
+	$parameters['domain_uuid'] = $domain_uuid;
+	$directory = $database->select($sql, $parameters ,'all');
+	if ($directory === false) {
+		$directory = [];
+	}
 
 //get all the users' groups from the database
 	$sql = "select ";
@@ -113,19 +132,22 @@
 	$sql .= "where ";
 	$sql .= "	ug.group_uuid = g.group_uuid ";
 	if (!(permission_exists('user_all') && $_GET['showall'] == 'true')) {
-		$sql .= "	and ug.domain_uuid = '".$domain_uuid."' ";
+		$sql .= "	and ug.domain_uuid = :domain_uuid ";
 	}
 	$sql .= "order by ";
 	$sql .= "	g.domain_uuid desc, ";
 	$sql .= "	g.group_name asc ";
-	$database = new database;
-	$result = $database->select($sql, 'all');
-	if (is_array($result)) {
+	$parameters = [];
+	$parameters['domain_uuid'] = $domain_uuid;
+	$result = $database->select($sql, $parameters, 'all');
+	if (!empty($result)) {
 		foreach($result as $row) {
-			$user_groups[$row['user_uuid']][] = $row['group_name'].(($row['group_domain_uuid'] != '') ? "@".$_SESSION['domains'][$row['group_domain_uuid']]['domain_name'] : null);
+			$user_groups[$row['user_uuid']][] = $row['group_name'].(($row['group_domain_uuid'] != '') ? "@".$_SESSION['domains'][$row['group_domain_uuid']]['domain_name'] : '');
 		}
+	} else {
+		$user_groups = [];
 	}
-	unset($database,$result);
+	unset($result);
 
 //get all the users' timezones from the database
 	$sql = "select ";
@@ -139,16 +161,15 @@
 	$sql .= "order by ";
 	$sql .= "	u.domain_uuid desc, ";
 	$sql .= "	u.username asc ";
-	$database = new database;
 	$result = $database->select($sql, 'all');
 	if (is_array($result) > 0) {
 		foreach($result as $row) {
 			$user_time_zone[$row['user_uuid']][] = $row['user_setting_value'];
 		}
 	}
-	unset($database,$result);
+	unset($result);
 
-		
+
 //additional includes
 	require_once "resources/header.php";
 	$document['title'] = $text['title-users_settings'];
@@ -185,11 +206,11 @@
 	echo "		}\n";
 	echo "	}\n";
 
-	$req['length'] = $_SESSION['security']['password_length']['numeric'];
-	$req['number'] = ($_SESSION['security']['password_number']['boolean'] == 'true') ? true : false;
-	$req['lowercase'] = ($_SESSION['security']['password_lowercase']['boolean'] == 'true') ? true : false;
-	$req['uppercase'] = ($_SESSION['security']['password_uppercase']['boolean'] == 'true') ? true : false;
-	$req['special'] = ($_SESSION['security']['password_special']['boolean'] == 'true') ? true : false;
+	$req['length'] = $settings->get('user', 'password_length', 20);
+	$req['number'] = $settings->get('user', 'password_number', true);
+	$req['lowercase'] = $settings->get('user', 'password_lowercase', true);
+	$req['uppercase'] = $settings->get('user', 'password_uppercase', true);
+	$req['special'] = $settings->get('user', 'password_special', true);
 
 	echo "	function check_password_strength(pwd) {\n";
 	echo "		if ($('#password').val() != '' || $('#password_confirm').val() != '') {\n";
@@ -233,43 +254,24 @@
 	echo "	}\n";
 	echo "</script>\n";
 
-	
+
 //show the content
 	echo "<table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\">\n";
 	echo "  <tr>\n";
 	echo "	<td align='left' width='100%'>\n";
-	echo "		<b>".$text['header-users']." (".$numberic_users.")</b><br>\n";
+	echo "		<b>".$text['header-users']." (".$num_rows.")</b><br>\n";
 
 //options list
 	echo "<form name='frm' method='get' id=option_selected>\n";
 	echo "    <select class='formfld' name='option_selected'  onchange=\"this.form.submit();\">\n";
 	echo "    <option value=''>".$text['label-extension_null']."</option>\n";
-	if ($option_selected == "user_enabled") {
-		echo "    <option value='user_enabled' selected='selected'>".$text['label-user_enabled']."</option>\n";
-	}
-	else {
-		echo "    <option value='user_enabled'>".$text['label-user_enabled']."</option>\n";
-	}
-	if ($option_selected == "group") {
-		echo "    <option value='group' selected='selected'>".$text['label-group']."</option>\n";
-	}
-	if ($option_selected == "password") {
-		echo "    <option value='password' selected='selected'>".$text['label-password']."</option>\n";
-	}
-	else {
-		echo "    <option value='password'>".$text['label-password']."</option>\n";
-	}
-	if ($option_selected == "user_status") {
-		echo "    <option value='user_status' selected='selected'>".$text['label-user_status']."</option>\n";
-	}
-	else {
-		echo "    <option value='user_status'>".$text['label-user_status']."</option>\n";
-	}
-	if ($option_selected == "time_zone") {
-		echo "    <option value='time_zone' selected='selected'>".$text['label-time_zone']."</option>\n";
-	}
-	else {
-		echo "    <option value='time_zone'>".$text['label-time_zone']."</option>\n";
+	foreach ($user_options as $option) {
+		if ($option_selected === $option) {
+			$selected = " selected='selected'";
+		} else {
+			$selected = '';
+		}
+		echo "    <option value='$option'$selected>".$text["label-$option"]."</option>\n";
 	}
 	echo "    </select>\n";
 	echo "    </form>\n";
@@ -280,7 +282,7 @@
 	echo "		<td align='right' width='100%' style='vertical-align: top;'>";
 	echo "		<form method='get' action=''>\n";
 	echo "			<td style='vertical-align: top; text-align: right; white-space: nowrap;'>\n";
-	echo "				<input type='button' class='btn' alt='".$text['button-back']."' onclick=\"window.location='bulk_account_settings.php'\" value='".$text['button-back']."'>\n";	
+	echo "				<input type='button' class='btn' alt='".$text['button-back']."' onclick=\"window.location='bulk_account_settings.php'\" value='".$text['button-back']."'>\n";
 	echo "				<input type='text' class='txt' style='width: 150px' name='search' id='search' value='".escape($search)."'>";
 	echo "				<input type='hidden' class='txt' style='width: 150px' name='option_selected' id='option_selected' value='".escape($option_selected)."'>";
 	echo "				<input type='submit' class='btn' name='submit' value='".$text['button-search']."'>";
@@ -288,10 +290,8 @@
 		echo 			"<span style='margin-left: 15px;'>".$paging_controls_mini."</span>\n";
 	}
 	echo "			</td>\n";
-	echo "		</form>\n";	
+	echo "		</form>\n";
 	echo "  </tr>\n";
-	
-	
 	echo "	<tr>\n";
 	echo "		<td colspan='2'>\n";
 	echo "			".$text['description-users_settings']."\n";
@@ -313,7 +313,7 @@
 			echo $text["description-".escape($option_selected).""]."\n";
 			echo "</td>\n";
 		}
-		
+
 		//option is Enabled
 		if($option_selected == 'user_enabled') {
 			echo "<td class='vtable' align='left'>\n";
@@ -373,10 +373,11 @@
 		if($option_selected == 'group') {
 			echo "		<td class='vtable'>";
 			$sql = "select * from v_groups ";
-			$sql .= "where (domain_uuid = '".$domain_uuid."' or domain_uuid is null) ";
+			$sql .= "where (domain_uuid = :domain_uuid or domain_uuid is null) ";
 			$sql .= "order by domain_uuid desc, group_name asc ";
-			$database = new database;
-			$result = $database->select($sql, 'all');
+			$parameters = [];
+			$parameters['domain_uuid'] = $domain_uuid;
+			$result = $database->select($sql, $parameters, 'all');
 			$result_count = count($result);
 			if ($result_count > 0) {
 				if (isset($assigned_groups)) { echo "<br />\n"; }
@@ -394,7 +395,7 @@
 					echo "<input type='button' class='btn' value=\"".$text['button-add']."\" onclick=\"document.getElementById('action').value = '".$text['button-add']."'; submit_form();\">\n";
 				}
 			}
-			unset($sql, $prep_statement, $result);
+			unset($sql, $result);
 			echo "		</td>";
 		}
 		echo "<td align='left'>\n";
@@ -428,7 +429,7 @@ if (is_array($directory)) {
 			echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row['username'])."&nbsp;</td>\n";
 			echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row['user_status'])."&nbsp;</td>\n";
 			echo "	<td valign='top' class='".$row_style[$c]."'>";
-				if (sizeof($user_groups[$row['user_uuid']]) > 0) {
+				if (count($user_groups[$row['user_uuid']]) > 0) {
 					echo implode(', ', $user_groups[$row['user_uuid']]);
 				}
 				echo "&nbsp;</td>\n";
@@ -441,7 +442,7 @@ if (is_array($directory)) {
 			echo "</tr>\n";
 			$c = ($c) ? 0 : 1;
 		}
-		unset($directory, $row);
+		unset($row);
 	}
 	echo "</table>";
 	echo "</form>";
@@ -451,7 +452,7 @@ if (is_array($directory)) {
 		echo $paging_controls."\n";
 	}
 
-	echo "<br /><br />".((is_array($directory)) ? "<br /><br />" : null);
+	echo "<br /><br />".((!empty($directory)) ? "<br /><br />" : null);
 
 	// check or uncheck all checkboxes
 	if (sizeof($user_ids) > 0) {
@@ -465,7 +466,7 @@ if (is_array($directory)) {
 		echo "</script>\n";
 	}
 
-	if (is_array($directory)) {
+	if (!empty($directory)) {
 		// check all checkboxes
 		key_press('ctrl+a', 'down', 'document', null, null, "check('all');", true);
 
@@ -475,5 +476,3 @@ if (is_array($directory)) {
 
 //show the footer
 	require_once "resources/footer.php";
-
-?>

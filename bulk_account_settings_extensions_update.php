@@ -41,58 +41,88 @@
 	$language = new text;
 	$text = $language->get();
 
+//set options
+	$extension_options = [];
+	$extension_options[] = 'accountcode';
+	$extension_options[] = 'call_group';
+	$extension_options[] = 'call_timeout';
+	$extension_options[] = 'emergency_caller_id_name';
+	$extension_options[] = 'emergency_caller_id_number';
+	$extension_options[] = 'enabled';
+	$extension_options[] = 'directory_visible';
+	$extension_options[] = 'user_record';
+	$extension_options[] = 'hold_music';
+	$extension_options[] = 'limit_max';
+	$extension_options[] = 'outbound_caller_id_name';
+	$extension_options[] = 'outbound_caller_id_number';
+	$extension_options[] = 'toll_allow';
+	$extension_options[] = 'sip_force_expires';
+	$extension_options[] = 'sip_bypass_media';
+	$extension_options[] = 'mwi_account';
+
+//use connected database
+	$domain_uuid = $_SESSION['domain_uuid'] ?? '';
+	$user_uuid = $_SESSION['user_uuid'] ?? '';
+	$database = database::new(['config' => config::load(), 'domain_uuid' => $domain_uuid]);
+	$settings = new settings(['database' => $database, 'domain_uuid' => $domain_uuid, 'user_uuid' => $user_uuid]);
+
 //check for the ids
-	if (is_array($_REQUEST) && sizeof($_REQUEST) > 0) {
+	if (!empty($_REQUEST)) {
 
 		$extension_uuids = $_REQUEST["id"];
 		$option_selected = $_REQUEST["option_selected"];
+		//stop loading if it is not a valid value
+		if (!empty($option_selected) && !in_array($option_selected, $extension_options)) {
+			die('invalid option');
+		}
 		$new_setting = $_REQUEST["new_setting"];
+		//set parameter for query
+		$parameters = [];
+		$parameters['domain_uuid'] = $domain_uuid;
+		//set the index and array for the save array
+		$i = 0;
+		$array = [];
+		$cache = new cache;
 		foreach($extension_uuids as $extension_uuid) {
 			$extension_uuid = check_str($extension_uuid);
-			if ($extension_uuid != '') {
+			if (is_uuid($extension_uuid)) {
 				//get the extensions array
-					$sql = "select * from v_extensions ";
-					$sql .= "where domain_uuid = '".$_SESSION['domain_uuid']."' ";
-					$sql .= "and extension_uuid = '".$extension_uuid."' ";
-					$database = new database;
-					$extensions = $database->select($sql, 'all');
-					if (is_array($extensions)) { 
-						foreach ($extensions as &$row) {
-							$extension = $row["extension"];
-							$user_context = $row["user_context"];
-							$number_alias = $row["number_alias"];
-						}
-						unset ($prep_statement);
+				$sql = "select extension, user_context, number_alias from v_extensions ";
+				$sql .= "where domain_uuid = :domain_uuid ";
+				$sql .= "and extension_uuid = :extension_uuid ";
+				$parameters['extension_uuid'] = $extension_uuid;
+				$extensions = $database->select($sql, $parameters, 'all');
+				if (is_array($extensions)) {
+					foreach ($extensions as $row) {
+						$extension = $row["extension"];
+						$user_context = $row["user_context"];
+						$number_alias = $row["number_alias"];
 					}
+				}
 
-					$array["extensions"][$i]["domain_uuid"] = $domain_uuid;
-					$array["extensions"][$i]["extension_uuid"] = $extension_uuid;
-					$array["extensions"][$i][$option_selected] = $new_setting;
+				$array["extensions"][$i]["domain_uuid"] = $domain_uuid;
+				$array["extensions"][$i]["extension_uuid"] = $extension_uuid;
+				$array["extensions"][$i][$option_selected] = $new_setting;
 
-					$database = new database;
-					$database->app_name = 'bulk_account_settings';
-					$database->app_uuid = null;
-					$database->save($array);
-					$message = $database->message;
-				
-					//echo "<pre>".print_r($message, true)."<pre>\n";
-					//exit;
-					
-					unset($database, $array,$i);
-				
 				//clear the cache
-					$cache = new cache;
-					$cache->delete("directory:".$extension."@".$user_context);
-					if (permission_exists('number_alias') && strlen($number_alias) > 0) {
-						$cache->delete("directory:".$number_alias."@".$user_context);
-					}
+				$cache->delete("directory:".$extension."@".$user_context);
+				if (permission_exists('number_alias') && strlen($number_alias) > 0) {
+					$cache->delete("directory:".$number_alias."@".$user_context);
+				}
+				$i++;
 			}
 		}
+		if (!empty($array)) {
+			//save modifications
+			$database->app_name = 'bulk_account_settings';
+			$database->app_uuid = '6b4e03c9-c302-4eaa-b16d-e1c5c08a2eb7';
+			$database->save($array);
+			$message = $database->message;
+		}
+
 	}
 
 //redirect the browser
 	$_SESSION["message"] = $text['message-update'];
 	header("Location: bulk_account_settings_extensions.php?option_selected=".$option_selected."");
 	return;
-
-?>

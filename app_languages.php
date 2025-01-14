@@ -156,6 +156,18 @@ $text['description-device_profile']['de-at'] = "Select the new device profile fo
 $text['description-device_profile']['it-it'] = "Select the new device profile for the selected devices.";
 $text['description-device_profile']['ru-ru'] = "Выберите новый профиль для выбранных устройств.";
 
+$text['description-device_profile_uuid']['en-us'] = "Select the new device profile for the selected devices.";
+$text['description-device_profile_uuid']['es-cl'] = "Select the new device profile for the selected devices.";
+$text['description-device_profile_uuid']['pt-pt'] = "Select the new device profile for the selected devices.";
+$text['description-device_profile_uuid']['fr-fr'] = "Select the new device profile for the selected devices.";
+$text['description-device_profile_uuid']['pt-br'] = "Select the new device profile for the selected devices.";
+$text['description-device_profile_uuid']['pl'] = "Select the new device profile for the selected devices.";
+$text['description-device_profile_uuid']['sv-se'] = "Select the new device profile for the selected devices.";
+$text['description-device_profile_uuid']['uk'] = "Select the new device profile for the selected devices.";
+$text['description-device_profile_uuid']['de-at'] = "Select the new device profile for the selected devices.";
+$text['description-device_profile_uuid']['it-it'] = "Select the new device profile for the selected devices.";
+$text['description-device_profile_uuid']['ru-ru'] = "Выберите новый профиль для выбранных устройств.";
+
 $text['description-device_template']['en-us'] = "Select the new device template for the selected devices.";
 $text['description-device_template']['es-cl'] = "Select the new device template for the selected devices.";
 $text['description-device_template']['pt-pt'] = "Select the new device template for the selected devices.";
@@ -996,6 +1008,18 @@ $text['label-device_profile']['uk'] = "Profile";
 $text['label-device_profile']['de-at'] = "Profile";
 $text['label-device_profile']['it-it'] = "Profile";
 $text['label-device_profile']['ru-ru'] = "Профиль";
+
+$text['label-device_profile_uuid']['en-us'] = "Profile";
+$text['label-device_profile_uuid']['es-cl'] = "Profile";
+$text['label-device_profile_uuid']['pt-pt'] = "Profile";
+$text['label-device_profile_uuid']['fr-fr'] = "Profile";
+$text['label-device_profile_uuid']['pt-br'] = "Profile";
+$text['label-device_profile_uuid']['pl'] = "Profile";
+$text['label-device_profile_uuid']['sv-se'] = "Profile";
+$text['label-device_profile_uuid']['uk'] = "Profile";
+$text['label-device_profile_uuid']['de-at'] = "Profile";
+$text['label-device_profile_uuid']['it-it'] = "Profile";
+$text['label-device_profile_uuid']['ru-ru'] = "Профиль";
 
 $text['label-device_enabled']['en-us'] = "Enabled";
 $text['label-device_enabled']['es-cl'] = "Enabled";

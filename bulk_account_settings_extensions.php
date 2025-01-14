@@ -29,60 +29,83 @@
 	require_once "resources/check_auth.php";
 	require_once "resources/paging.php";
 
-//include the class
-	require_once "resources/check_auth.php";
-
 //check permissions
-	require_once "resources/check_auth.php";
 	if (permission_exists('bulk_account_settings_extensions')) {
 		//access granted
 	}
 	else {
-		echo "access denied";
-		exit;
+		die("access denied");
 	}
 
 //add multi-lingual support
 	$language = new text;
 	$text = $language->get();
 
-//create database object
-	$database = database::new();
+//set options
+	$extension_options = [];
+	$extension_options[] = 'accountcode';
+	$extension_options[] = 'call_group';
+	$extension_options[] = 'call_timeout';
+	$extension_options[] = 'emergency_caller_id_name';
+	$extension_options[] = 'emergency_caller_id_number';
+	$extension_options[] = 'enabled';
+	$extension_options[] = 'directory_visible';
+	$extension_options[] = 'user_record';
+	$extension_options[] = 'hold_music';
+	$extension_options[] = 'limit_max';
+	$extension_options[] = 'outbound_caller_id_name';
+	$extension_options[] = 'outbound_caller_id_number';
+	$extension_options[] = 'toll_allow';
+	$extension_options[] = 'sip_force_expires';
+	$extension_options[] = 'sip_bypass_media';
+	$extension_options[] = 'mwi_account';
+
+//use connected database
+	$domain_uuid = $_SESSION['domain_uuid'] ?? '';
+	$user_uuid = $_SESSION['user_uuid'] ?? '';
+	$database = database::new(['config' => config::load(), 'domain_uuid' => $domain_uuid]);
+	$settings = new settings(['database' => $database, 'domain_uuid' => $domain_uuid, 'user_uuid' => $user_uuid]);
 
 //get the http values and set them as variables
 	$order_by = check_str($_GET["order_by"]);
 	$order = check_str($_GET["order"]);
 	$option_selected = check_str($_GET["option_selected"]);
 
-//handle search term
-	$search = check_str($_GET["search"]);
-	if (strlen($search) > 0) {
-		$search = strtolower($search);
-		$sql_mod = "and ( ";
-		$sql_mod .= "lower(extension) like '%".$search."%' ";
-		$sql_mod .= "or lower(accountcode) like '%".$search."%' ";
-		$sql_mod .= "or lower(call_group) like '%".$search."%' ";
-		$sql_mod .= "or lower(description) like '%".$search."%' ";
-		if (($option_selected == "") or ($option_selected == 'call_group') or ($option_selected == 'accountcode')) {
+//validate the option_selected
+	if (!empty($option_selected) && !in_array($option_selected, $extension_options)) {
+		die('invalid option');
+	}
 
-		} elseif (($option_selected == 'call_timeout') or ($option_selected == 'sip_force_expires')){
-			$sql_mod .= "or lower(cast (".$option_selected." as text)) like '%".$search."%' ";
-		} else {
-			$sql_mod .= "or lower(".$option_selected.") like '%".$search."%' ";
+//handle search term
+	$parameters = [];
+	$sql_mod = '';
+	$search = check_str($_GET["search"]);
+	if (!empty($search)) {
+		$sql_mod = "and ( ";
+		$sql_mod .= "lower(extension) like :search ";
+		$sql_mod .= "or lower(accountcode) like :search ";
+		$sql_mod .= "or lower(call_group) like :search ";
+		$sql_mod .= "or lower(description) like :search ";
+		switch ($option_selected) {
+			case 'call_timeout':
+			case 'sip_force_expires':
+				$sql_mod .= "or lower(cast (".$option_selected." as text)) like :search ";
+				break;
+			default:
+				$sql_mod .= "or lower(".$option_selected.") like :search ";
 		}
 		$sql_mod .= ") ";
+		$parameters['search'] = '%'.strtolower($search).'%';
 	}
 	if (strlen($order_by) < 1) {
 		$order_by = "extension";
 		$order = "ASC";
 	}
 
-	$domain_uuid = $_SESSION['domain_uuid'];
-
-
 //get total extension count from the database
-	$sql = "select count(*) as num_rows from v_extensions where domain_uuid = '".$_SESSION['domain_uuid']."' ".$sql_mod." ";
-	$result = $database->select($sql, null, 'column');
+	$sql = "select count(extension_uuid) as num_rows from v_extensions where domain_uuid = :domain_uuid ".$sql_mod." ";
+	$parameters['domain_uuid'] = $domain_uuid;
+	$result = $database->select($sql, $parameters, 'column');
 	if (!empty($result)) {
 		$total_extensions = intval($result);
 	} else {
@@ -91,32 +114,43 @@
 	unset($sql);
 
 //prepare to page the results
-	$rows_per_page = ($_SESSION['domain']['paging']['numeric'] != '') ? $_SESSION['domain']['paging']['numeric'] : 50;
-	$param = "&search=".$search."&option_selected=".$option_selected;
-	if (!isset($_GET['page'])) { $_GET['page'] = 0; }
-	$_GET['page'] = check_str($_GET['page']);
-	list($paging_controls_mini, $rows_per_page, $var_3) = paging($total_extensions, $param, $rows_per_page, true); //top
-	list($paging_controls, $rows_per_page, $var_3) = paging($total_extensions, $param, $rows_per_page); //bottom
-	$offset = $rows_per_page * $_GET['page'];
+	$rows_per_page = intval($settings->get('domain', 'paging', 50));
+	$url_params = "&search=".$search."&option_selected=".$option_selected;
+	if ($rows_per_page > 0) {
+		if (!isset($_GET['page'])) { $_GET['page'] = 0; }
+		$_GET['page'] = check_str($_GET['page']);
+		list($paging_controls_mini, $rows_per_page, $var_3) = paging($total_extensions, $url_params, $rows_per_page, true); //top
+		list($paging_controls, $rows_per_page, $var_3) = paging($total_extensions, $url_params, $rows_per_page); //bottom
+		$offset = $rows_per_page * intval($_GET['page']);
+	}
 
 //get all the extensions from the database
-	$sql = "SELECT \n";
-	$sql .= "description, \n";
-	$sql .= "extension, \n";
-	$sql .= "extension_uuid, \n";
-	if (($option_selected == "") or ($option_selected == 'call_group') or ($option_selected == 'accountcode')) {} else {
-		$sql .= "".$option_selected.", \n";
+	$parameters = [];
+	$sql = "SELECT ";
+	$sql .= "description, ";
+	$sql .= "extension, ";
+	$sql .= "extension_uuid, ";
+	if (!empty($option_selected) && $option_selected !== 'call_group' && $option_selected !== 'accountcode') {
+		$sql .= $option_selected . ", ";
 	}
-	$sql .= "accountcode, \n";
-	$sql .= "call_group \n";
-	$sql .= "FROM v_extensions \n";
-	$sql .= "WHERE domain_uuid = '$domain_uuid' \n";
-	$sql .= $sql_mod; //add search mod from above
-	$sql .= "ORDER BY ".$order_by." ".$order." \n";
-	$sql .= "limit $rows_per_page offset $offset ";
-	$database = new database;
-	$directory = $database->select($sql, 'all');
-	unset($database);
+	$sql .= "accountcode, ";
+	$sql .= "call_group ";
+	$sql .= "FROM v_extensions ";
+	$sql .= "WHERE domain_uuid = :domain_uuid ";
+	//add search mod from above
+	if (!empty($sql_mod)) {
+		$sql .= $sql_mod;
+		$parameters['search'] = '%'.strtolower($search).'%';
+	}
+	if ($rows_per_page > 0) {
+		$sql .= "ORDER BY $order_by $order ";
+		$sql .= "limit $rows_per_page offset $offset ";
+	}
+	$parameters['domain_uuid'] = $domain_uuid;
+	$directory = $database->select($sql, $parameters, 'all');
+	if ($directory === false) {
+		$directory = [];
+	}
 
 //additional includes
 	require_once "resources/header.php";
@@ -137,104 +171,13 @@
 		echo "<form name='frm' method='get' id=option_selected>\n";
 		echo "    <select class='formfld' name='option_selected'  onchange=\"this.form.submit();\">\n";
 		echo "    <option value=''>".$text['label-extension_null']."</option>\n";
-		if ($option_selected == "accountcode") {
-			echo "    <option value='accountcode' selected='selected'>".$text['label-accountcode']."</option>\n";
-		}
-		else {
-			echo "    <option value='accountcode'>".$text['label-accountcode']."</option>\n";
-		}
-		if ($option_selected == "call_group") {
-			echo "    <option value='call_group' selected='selected'>".$text['label-call_group']."</option>\n";
-		}
-		else {
-			echo "    <option value='call_group'>".$text['label-call_group']."</option>\n";
-		}
-		if ($option_selected == "call_timeout") {
-			echo "    <option value='call_timeout' selected='selected'>".$text['label-call_timeout']."</option>\n";
-		}
-		else {
-			echo "    <option value='call_timeout'>".$text['label-call_timeout']."</option>\n";
-		}
-		if ($option_selected == "emergency_caller_id_name") {
-			echo "    <option value='emergency_caller_id_name' selected='selected'>".$text['label-emergency_caller_id_name']."</option>\n";
-		}
-		else {
-			echo "    <option value='emergency_caller_id_name'>".$text['label-emergency_caller_id_name']."</option>\n";
-		}
-		if ($option_selected == "emergency_caller_id_number") {
-			echo "    <option value='emergency_caller_id_number' selected='selected'>".$text['label-emergency_caller_id_number']."</option>\n";
-		}
-		else {
-			echo "    <option value='emergency_caller_id_number'>".$text['label-emergency_caller_id_number']."</option>\n";
-		}
-		if ($option_selected == "enabled") {
-			echo "    <option value='enabled' selected='selected'>".$text['label-enabled']."</option>\n";
-		}
-		else {
-			echo "    <option value='enabled'>".$text['label-enabled']."</option>\n";
-		}
-		if ($option_selected == "directory_visible") {
-                        echo "    <option value='directory_visible' selected='selected'>".$text['label-directory_visible']."</option>\n";
-                }
-                else {
-                        echo "    <option value='directory_visible'>".$text['label-directory_visible']."</option>\n";
-                }
-
-		 if ($option_selected == "user_record") {
-                        echo "    <option value='user_record' selected='selected'>".$text['label-user_record']."</option>\n";
-                }
-                else {
-                        echo "    <option value='user_record'>".$text['label-user_record']."</option>\n";
-                }
-
-
-		if ($option_selected == "hold_music") {
-			echo "    <option value='hold_music' selected='selected'>".$text['label-hold_music']."</option>\n";
-		}
-		else {
-			echo "    <option value='hold_music'>".$text['label-hold_music']."</option>\n";
-		}
-		if ($option_selected == "limit_max") {
-			echo "    <option value='limit_max' selected='selected'>".$text['label-limit_max']."</option>\n";
-		}
-		else {
-			echo "    <option value='limit_max'>".$text['label-limit_max']."</option>\n";
-		}
-		if ($option_selected == "outbound_caller_id_name") {
-			echo "    <option value='outbound_caller_id_name' selected='selected'>".$text['label-outbound_caller_id_name']."</option>\n";
-		}
-		else {
-			echo "    <option value='outbound_caller_id_name'>".$text['label-outbound_caller_id_name']."</option>\n";
-		}
-		if ($option_selected == "outbound_caller_id_number") {
-			echo "    <option value='outbound_caller_id_number' selected='selected'>".$text['label-outbound_caller_id_number']."</option>\n";
-		}
-		else {
-			echo "    <option value='outbound_caller_id_number'>".$text['label-outbound_caller_id_number']."</option>\n";
-		}
-		if ($option_selected == "toll_allow") {
-			echo "    <option value='toll_allow' selected='selected'>".$text['label-toll_allow']."</option>\n";
-		}
-		else {
-			echo "    <option value='toll_allow'>".$text['label-toll_allow']."</option>\n";
-		}
-		if ($option_selected == "sip_force_expires") {
-			echo "    <option value='sip_force_expires' selected='selected'>".$text['label-sip_force_expires']."</option>\n";
-		}
-		else {
-			echo "    <option value='sip_force_expires'>".$text['label-sip_force_expires']."</option>\n";
-		}
-		if ($option_selected == "sip_bypass_media") {
-			echo "    <option value='sip_bypass_media' selected='selected'>".$text['label-sip_bypass_media']."</option>\n";
-		}
-		else {
-			echo "    <option value='sip_bypass_media'>".$text['label-sip_bypass_media']."</option>\n";
-		}
-		if ($option_selected == "mwi_account") {
-			echo "    <option value='mwi_account' selected='selected'>".$text['label-mwi_account']."</option>\n";
-		}
-		else {
-			echo "    <option value='mwi_account'>".$text['label-mwi_account']."</option>\n";
+		foreach ($extension_options as $option) {
+			if ($option_selected === $option) {
+				$selected = " selected='selected'";
+			} else {
+				$selected = "";
+			}
+			echo "    <option value='$option'$selected>".$text['label-'.$option]."</option>\n";
 		}
 		echo "    </select>\n";
 		echo "    </form>\n";
@@ -273,15 +216,25 @@
 		echo "<table width='auto' border='0' cellpadding='0' cellspacing='0'>\n";
 		echo "<tr>\n";
 		//options with a free form input
-		if($option_selected == 'accountcode' || $option_selected == 'call_group' || $option_selected == 'call_timeout' || $option_selected == 'emergency_caller_id_name' || $option_selected == 'emergency_caller_id_number' || $option_selected == 'limit_max' || $option_selected == 'outbound_caller_id_name' || $option_selected == 'outbound_caller_id_number' || $option_selected == 'toll_allow' || $option_selected == 'sip_force_expires' || $option_selected == 'mwi_account') {
+		if ($option_selected == 'accountcode'
+				|| $option_selected == 'call_group'
+				|| $option_selected == 'call_timeout'
+				|| $option_selected == 'emergency_caller_id_name'
+				|| $option_selected == 'emergency_caller_id_number'
+				|| $option_selected == 'limit_max'
+				|| $option_selected == 'outbound_caller_id_name'
+				|| $option_selected == 'outbound_caller_id_number'
+				|| $option_selected == 'toll_allow'
+				|| $option_selected == 'sip_force_expires'
+				|| $option_selected == 'mwi_account') {
 			echo "<td class='vtable' align='left'>\n";
 			echo "    <input class='formfld' type='text' name='new_setting' maxlength='255' value=\"$new_setting\">\n";
 			echo "<br />\n";
 			echo $text["description-".escape($option_selected).""]."\n";
 			echo "</td>\n";
 		}
-		//option is Enabled
-		if($option_selected == 'enabled') {
+		//options with True/False
+		if ($option_selected === 'enabled' || $option_selected === 'directory_visible') {
 			echo "<td class='vtable' align='left'>\n";
 			echo "    <select class='formfld' name='new_setting'>\n";
 			echo "    <option value='true'>".$text['label-true']."</option>\n";
@@ -291,49 +244,36 @@
 			echo $text["description-".$option_selected.""]."\n";
 			echo "</td>\n";
 		}
-		//option is Directory Visible
-                if($option_selected == 'directory_visible') {
-                        echo "<td class='vtable' align='left'>\n";
-                        echo "    <select class='formfld' name='new_setting'>\n";
-                        echo "    <option value='true'>".$text['label-true']."</option>\n";
-                        echo "    <option value='false'>".$text['label-false']."</option>\n";
-                        echo "    </select>\n";
-                        echo "    <br />\n";
-                        echo $text["description-".$option_selected.""]."\n";
-                        echo "</td>\n";
-                }
-
 		//option is User Record
-                if($option_selected == 'user_record') {
-                        echo "<td class='vtable' align='left'>\n";
-                        echo "    <select class='formfld' name='new_setting'>\n";
-			echo "    <option value=''>".$text['label-user_record_none']."</option>\n";
-                        echo "    <option value='all'>".$text['label-all']."</option>\n";
-                        echo "    <option value=inbound'>".$text['label-inbound']."</option>\n";
-                        echo "    <option value=outbound'>".$text['label-outbound']."</option>\n";
-                        echo "    <option value=local'>".$text['label-local']."</option>\n";
-                        echo "	  <option value=disabled'>".$text['label-disabled']."</option>\n";
-                        echo "    </select>\n";
-                        echo "    <br />\n";
-                        echo $text["description-".$option_selected.""]."\n";
-                        echo "</td>\n";
-                }
-
+        if ($option_selected == 'user_record') {
+			echo "<td class='vtable' align='left'>\n";
+			echo "    <select class='formfld' name='new_setting'>\n";
+			echo "		<option value=''>".$text['label-user_record_none']."</option>\n";
+			echo "		<option value='all'>".$text['label-all']."</option>\n";
+			echo "		<option value=inbound'>".$text['label-inbound']."</option>\n";
+			echo "		<option value=outbound'>".$text['label-outbound']."</option>\n";
+			echo "		<option value=local'>".$text['label-local']."</option>\n";
+			echo "		<option value=disabled'>".$text['label-disabled']."</option>\n";
+			echo "    </select>\n";
+			echo "    <br />\n";
+			echo $text["description-".$option_selected.""]."\n";
+			echo "</td>\n";
+        }
 		//option is SIP Bypass Media
-		if($option_selected=='sip_bypass_media') {
-                        echo "<td class='vtable' align='left'>\n";
-                        echo "    <select class='formfld' name='new_setting'>\n";
-                        echo "    <option value=''></option>\n";
-                        echo "    <option value='bypass-media'>".$text['option-bypass_media']."</option>\n";
-                        echo "    <option value='bypass-media-after-bridge'>".$text['option-bypass_media_after_bridge']."</option>\n";
-                        echo "    <option value='proxy-media'>".$text['option-proxy_media']."</option>\n";
-                        echo "    </select>\n";
-                        echo "    <br />\n";
-                        echo $text["description-".$option_selected.""]."\n";
-                        echo "</td>\n";
+		if ($option_selected == 'sip_bypass_media') {
+			echo "<td class='vtable' align='left'>\n";
+			echo "    <select class='formfld' name='new_setting'>\n";
+			echo "    <option value=''></option>\n";
+			echo "    <option value='bypass-media'>".$text['option-bypass_media']."</option>\n";
+			echo "    <option value='bypass-media-after-bridge'>".$text['option-bypass_media_after_bridge']."</option>\n";
+			echo "    <option value='proxy-media'>".$text['option-proxy_media']."</option>\n";
+			echo "    </select>\n";
+			echo "    <br />\n";
+			echo $text["description-".$option_selected.""]."\n";
+			echo "</td>\n";
 		}
 		//option is hold_music
-		if($option_selected == 'hold_music') {
+		if ($option_selected == 'hold_music') {
 			echo "<td class='vtable' align='left'>\n";
 			if (is_dir($_SERVER["DOCUMENT_ROOT"].PROJECT_PATH.'/app/music_on_hold')) {
 				require_once "app/music_on_hold/resources/classes/switch_music_on_hold.php";
@@ -355,7 +295,7 @@
 	}
 	echo "<table class='tr_hover' width='100%' border='0' cellpadding='0' cellspacing='0'>\n";
 	echo "<tr>\n";
-	if (is_array($directory)) {
+	if (!empty($directory)) {
 		echo "<th style='width: 30px; text-align: center; padding: 0px;'><input type='checkbox' id='chk_all' onchange=\"(this.checked) ? check('all') : check('none');\"></th>";
 	}
 	echo th_order_by('extension', $text['label-extension'], $order_by,$order,'','',"option_selected=".$option_selected."&search=".$search."");
@@ -369,8 +309,8 @@
 	echo "</tr>\n";
 
 
-
-if (is_array($directory)) {
+	$ext_ids = [];
+	if (!empty($directory)) {
 
 		foreach($directory as $key => $row) {
 			$tr_link = (permission_exists('extension_edit')) ? " href='/app/extensions/extension_edit.php?id=".$row['extension_uuid']."'" : null;
@@ -393,20 +333,19 @@ if (is_array($directory)) {
 			$c = ($c) ? 0 : 1;
 		}
 
-		unset($directory, $row);
 	}
 
 	echo "</table>";
 	echo "</form>";
 
-	if (strlen($paging_controls) > 0) {
+	if (!empty($paging_controls)) {
 		echo "<br />";
 		echo $paging_controls."\n";
 	}
-	echo "<br /><br />".((is_array($directory)) ? "<br /><br />" : null);
+	echo "<br /><br />".((!empty($directory)) ? "<br /><br />" : null);
 
 	// check or uncheck all checkboxes
-	if (sizeof($ext_ids) > 0) {
+	if (!empty($ext_ids)) {
 		echo "<script>\n";
 		echo "	function check(what) {\n";
 		echo "		document.getElementById('chk_all').checked = (what == 'all') ? true : false;\n";
@@ -417,7 +356,7 @@ if (is_array($directory)) {
 		echo "</script>\n";
 	}
 
-	if (is_array($directory)) {
+	if (!empty($directory)) {
 		// check all checkboxes
 		key_press('ctrl+a', 'down', 'document', null, null, "check('all');", true);
 
