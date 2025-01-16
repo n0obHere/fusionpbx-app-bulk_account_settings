@@ -244,7 +244,7 @@
 			$parameters['domain_uuid'] = $domain_uuid;
 			$result = $database->select($sql, $parameters, 'all');
 			if (!empty($result)) {
-				$result_count = count(intval($result));
+				$result_count = intval($result);
 			} else {
 				$result_count = 0;
 			}
@@ -274,7 +274,7 @@
 			if (is_dir($template_dir)) {
 					$templates = scandir($template_dir);
 					foreach ($templates as $dir) {
-						if (!empty($file) && $file != "." && !empty($dir) && $dir != ".." && $dir[0] != '.') {
+						if (!empty($dir) && $dir != "." && !empty($dir) && $dir != ".." && $dir[0] != '.') {
 							if (is_dir($template_dir . "/" . $dir)) {
 								echo "<optgroup label='$dir'>";
 								$dh_sub=$template_dir . "/" . $dir;
