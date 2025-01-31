@@ -165,7 +165,9 @@
 	echo "<table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\">\n";
 	echo "  <tr>\n";
 	echo "	<td align='left' width='100%'>\n";
-	echo "		<b>".$text['header-extensions']." (".$total_extensions.")</b><br>\n";
+	echo "		<div class='action_bar' id='action_bar'>\n";
+	echo "			<div class='heading'><b>".$text['header-extensions']."</b><div class='count'>".$total_extensions."</div></div><br>\n";
+	echo "		</div>\n";
 
 //options list
 		echo "<form name='frm' method='get' id=option_selected>\n";
@@ -293,6 +295,8 @@
 		echo "</table>";
 		echo "<br />";
 	}
+
+	echo "<div class='card'>\n";
 	echo "<table class='tr_hover' width='100%' border='0' cellpadding='0' cellspacing='0'>\n";
 	echo "<tr>\n";
 	if (!empty($directory)) {
@@ -335,11 +339,12 @@
 
 	}
 
-	echo "</table>";
-	echo "</form>";
+	echo "</table>\n";
+	echo "</div>\n";
+	echo "</form>\n";
 
 	if (!empty($paging_controls)) {
-		echo "<br />";
+		echo "<br />\n";
 		echo $paging_controls."\n";
 	}
 	echo "<br /><br />".((!empty($directory)) ? "<br /><br />" : null);
