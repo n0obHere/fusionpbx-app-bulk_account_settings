@@ -59,14 +59,14 @@
 	$user_options[] = 'time_zone';
 
 //get the http values and set them as variables
-	$order_by = check_str($_GET["order_by"]);
-	$order = check_str($_GET["order"]);
-	$option_selected = check_str($_GET["option_selected"]);
+	$order_by = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["order_by"] ?? '');
+	$order = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["order"] ?? '');
+	$option_selected = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["option_selected"]);
 
 //handle search term
 	$parameters = [];
 	$sql_mod = '';
-	$search = check_str($_GET["search"]);
+	$search = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["search"] ?? '');
 	if (strlen($search) > 0) {
 		$sql_mod = 'and ( ';
 		$sql_mod .= 'username ILIKE :search ';
@@ -77,7 +77,11 @@
 	}
 	if (strlen($order_by) < 1) {
 		$order_by = "username";
-		$order = "ASC";
+	}
+
+//ensure only two possible values for $order
+	if ($order != 'DESC') {
+		$order = 'ASC';
 	}
 
 //get total extension count from the database
@@ -87,35 +91,41 @@
 	$num_rows = $database->select($sql, $parameters, 'column');
 
 //prepare to page the results
-	$rows_per_page = $settings->get('domain', 'paging', 50);
+	$rows_per_page = intval($settings->get('domain', 'paging', 50));
+	$page = intval(preg_replace('#[^0-9]#', '', $_GET['page'] ?? 0));
+	$offset = $rows_per_page * $page;
 	if ($rows_per_page > 0) {
-		$param = "&search=".$search."&option_selected=".$option_selected;
-		if (!isset($_GET['page'])) { $_GET['page'] = 0; }
-		$_GET['page'] = check_str($_GET['page']);
-		list($paging_controls_mini, $rows_per_page, $var_3) = paging($total_users, $param, $rows_per_page, true); //top
-		list($paging_controls, $rows_per_page, $var_3) = paging($total_users, $param, $rows_per_page); //bottom
-		$offset = $rows_per_page * $_GET['page'];
+		$url_params = '';
+		if (!empty($search)) {
+			$url_params .= (empty($url_params) ? '' : '&') . "search=".$search;
+		}
+		if (!empty($option_selected)) {
+			$url_params .= (empty($url_params) ? '' : '&') ."option_selected=".$option_selected;
+		}
+		list($paging_controls_mini, $rows_per_page, $var_3) = paging($total_users, $url_params, $rows_per_page, true); //top
+		list($paging_controls, $rows_per_page, $var_3) = paging($total_users, $url_params, $rows_per_page); //bottom
 	}
 
 //get all the users from the database
 	$parameters = [];
-	$sql = 'select ';
-	$sql .= 'username, ';
-	$sql .= 'user_uuid, ';
-	$sql .= 'user_status, ';
-	$sql .= 'user_enabled ';
-	$sql .= 'from v_users ';
-	$sql .= 'where 1=1 ';
-	$sql .= 'and domain_uuid = :domain_uuid ';
+	$sql  = 'select';
+	$sql .= ' username';
+	$sql .= ', user_uuid';
+	$sql .= ', user_status';
+	$sql .= ', user_enabled';
+	$sql .= ' from';
+	$sql .= ' v_users';
+	$sql .= ' where';
+	$sql .= ' true';
+	$sql .= ' and';
+	$sql .= ' domain_uuid = :domain_uuid';
 	if (!empty($sql_mod)) {
 		$sql .= $sql_mod; //add search mod from above
 		$parameters['search'] = '%'.$search.'%';
 	}
 	if ($rows_per_page > 0) {
-		$sql .= "order by :order_by :order ";
-		$sql .= "limit $rows_per_page offset $offset ";
-		$parameters['order_by'] = $order_by;
-		$parameters['order'] = $order;
+		$sql .= " order by $order_by $order";
+		$sql .= " limit $rows_per_page offset $offset";
 	}
 	$parameters['domain_uuid'] = $domain_uuid;
 	$directory = $database->select($sql, $parameters ,'all');
@@ -131,9 +141,8 @@
 	$sql .= "	v_groups as g ";
 	$sql .= "where ";
 	$sql .= "	ug.group_uuid = g.group_uuid ";
-	if (!(permission_exists('user_all') && $_GET['showall'] == 'true')) {
-		$sql .= "	and ug.domain_uuid = :domain_uuid ";
-	}
+	$sql .= "and"
+			. " ug.domain_uuid = :domain_uuid ";
 	$sql .= "order by ";
 	$sql .= "	g.domain_uuid desc, ";
 	$sql .= "	g.group_name asc ";
@@ -381,13 +390,13 @@
 			$result_count = count($result);
 			if ($result_count > 0) {
 				if (isset($assigned_groups)) { echo "<br />\n"; }
-				echo "<select name='group_uuid_name' class='formfld' style='width: auto; margin-right: 3px;'>\n";
+				echo "<select name='group_uuid' class='formfld' style='width: auto; margin-right: 3px;'>\n";
 				echo "	<option value=''></option>\n";
 				foreach($result as $field) {
 					if ($field['group_name'] == "superadmin" && !if_group("superadmin")) { continue; }	//only show the superadmin group to other superadmins
 					if ($field['group_name'] == "admin" && (!if_group("superadmin") && !if_group("admin") )) { continue; }	//only show the admin group to other admins
 					if ( !isset($assigned_groups) || (isset($assigned_groups) && !in_array($field["group_uuid"], $assigned_groups)) ) {
-						echo "	<option value='".escape($field['group_uuid'])."|".escape($field['group_name'])."'>".escape($field['group_name']).(($field['domain_uuid'] != '') ? "@".$_SESSION['domains'][$field['domain_uuid']]['domain_name'] : null)."</option>\n";
+						echo "	<option value='{$field['group_uuid']}'>".escape($field['group_name']).(($field['domain_uuid'] != '') ? "@".$_SESSION['domains'][$field['domain_uuid']]['domain_name'] : null)."</option>\n";
 					}
 				}
 				echo "</select>";
@@ -399,7 +408,25 @@
 			echo "		</td>";
 		}
 		echo "<td align='left'>\n";
-		echo "<input type='button' class='btn' alt='".$text['button-submit']."' onclick=\"if (confirm('".$text['confirm-update']."')) { document.forms.users.submit(); }\" value='".$text['button-submit']."'; if (check_password_strength(document.getElementById('password').value)) { submit_form(); }>\n";
+		echo button::create([
+			'type' => 'submit',
+			'value'=> 'add',
+			'label'=> $text['button-add'],
+			'icon' => $settings->get('theme','button_icon_add'),
+			'name' => 'action',
+			'style'=> 'margin-left: 15px;',
+			'on-click'=> "if (confirm('".$text['confirm-update']."')) { document.forms.users.submit(); }",
+		]);
+		echo button::create([
+			'type' => 'submit',
+			'value'=> 'remove',
+			'label'=> $text['button-remove'],
+			'icon' => 'fas fa-minus',
+			'name' => 'action',
+			'style'=> 'margin-left: 15px;',
+			'on-click'=> "if (confirm('".$text['confirm-update']."')) { document.forms.users.submit(); }",
+		]);
+		//echo "<input type='button' class='btn' alt='".$text['button-submit']."' onclick=\"if (confirm('".$text['confirm-update']."')) { document.forms.users.submit(); }\" value='".$text['button-submit']."'; if (check_password_strength(document.getElementById('password').value)) { submit_form(); }>\n";
 		echo "</td>\n";
 		echo "</tr>\n";
 		echo "</table>";

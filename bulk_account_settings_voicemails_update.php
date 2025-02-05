@@ -90,7 +90,15 @@
 
 		//validate the option_action
 		if (!empty($option_action) && !in_array($option_action, $voicemail_actions, true)) {
-			die('invalid action');
+			header("HTTP/1.1 400 Bad Request");
+			echo "<!DOCTYPE html>\n";
+			echo "<html>\n";
+			echo "  <head><title>400 Bad Request</title></head>\n";
+			echo "  <body bgcolor=\"white\">\n";
+			echo "    <center><h1>400 Bad Request</h1></center>\n";
+			echo "  </body>\n";
+			echo "</html>\n";
+			exit();
 		}
 
 		//seperate the action and the param

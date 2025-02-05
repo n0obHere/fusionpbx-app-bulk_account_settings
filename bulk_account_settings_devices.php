@@ -63,15 +63,15 @@
 	$database = database::new(['config' => config::load(), 'domain_uuid' => $domain_uuid]);
 	$settings = new settings(['database' => $database, 'domain_uuid' => $domain_uuid, 'user_uuid' => $user_uuid]);
 
-//get the http values and set them as variables
-	$order_by = check_str($_GET["order_by"] ?? null);
-	$order = check_str($_GET["order"] ?? null);
-	$option_selected = check_str($_GET["option_selected"] ?? null);
+//sanitize the http values and set them as variables
+	$order_by = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["order_by"] ?? '');
+	$order = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["order"] ?? '');
+	$option_selected = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["option_selected"] ?? '');
 
 //handle search term
 	$parameters = [];
 	$sql_mod = '';
-	$search = check_str($_GET["search"] ?? null);
+	$search = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["search"] ?? '');
 	if (!empty($search)) {
 		$sql_mod = "and ( ";
 		$sql_mod .= "device_address ILIKE :search ";
@@ -85,7 +85,11 @@
 	}
 	if (empty($order_by)) {
 		$order_by = "device_label";
-		$order = "ASC";
+	}
+
+//ensure only two possible values for $order
+	if ($order != 'DESC') {
+		$order = 'ASC';
 	}
 
 //get total device count from the database
@@ -101,13 +105,23 @@
 //prepare to page the results
 	$rows_per_page = intval($settings->get('domain', 'paging', 50));
 	$param = (!empty($search) ? "&search=".$search : '').(!empty($option_selected) ? "&option_selected=".$option_selected : '');
-	$page = isset($_GET['page']) && is_numeric($_GET['page']) ? $_GET['page'] : 0;
+	$page = intval(preg_replace('#[^0-9]#', '', $_GET['page'] ?? 0));
 	list($paging_controls, $rows_per_page) = paging($total_devices, $param, $rows_per_page);
 	list($paging_controls_mini, $rows_per_page) = paging($total_devices, $param, $rows_per_page, true);
 	$offset = $rows_per_page * $page;
 
 //ensure the selected option is valid
-
+	if (!empty($option_selected) && !in_array($option_selected, $device_options, true)) {
+		header("HTTP/1.1 400 Bad Request");
+		echo "<!DOCTYPE html>\n";
+		echo "<html>\n";
+		echo "  <head><title>400 Bad Request</title></head>\n";
+		echo "  <body bgcolor=\"white\">\n";
+		echo "    <center><h1>400 Bad Request</h1></center>\n";
+		echo "  </body>\n";
+		echo "</html>\n";
+		exit();
+	}
 
 //get all the devices from the database
 	$parameters = [];
@@ -136,7 +150,6 @@
 	$directory = $database->select($sql, $parameters, 'all');
 
 //lookup the lines
-	$x = 0;
 	if (!empty($directory)) {
 		foreach ($directory as $key => $row) {
 			$parameters = [];
@@ -157,10 +170,8 @@
 			$directory[$key]['line_1_sip_port'] = $result[0]['sip_port'];
 			$directory[$key]['line_1_sip_transport'] = $result[0]['sip_transport'];
 			$directory[$key]['line_1_register_expires'] = $result[0]['register_expires'];
-
-			unset($result);
-			$x++;
 		}
+		unset($result);
 	}
 
 //additional includes
