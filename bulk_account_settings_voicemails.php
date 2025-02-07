@@ -72,24 +72,40 @@
 	$database = database::new(['config' => config::load(), 'domain_uuid' => $domain_uuid]);
 
 //get the http values and set them as variables
-	$order_by = check_str($_GET["order_by"]);
-	$order = check_str($_GET["order"]);
-	$option_selected = check_str($_GET["option_selected"]);
-	$option_action = check_str($_GET["option_action"]);
+	$order_by = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["order_by"] ?? '');
+	$order = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["order"] ?? '');
+	$option_selected = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["option_selected"] ?? '');
+	$option_action = $_GET["option_action"] ?? '';
 
 //validate the option_selected
 	if (!empty($option_selected) && !in_array($option_selected, $voicemail_options, true)) {
-		die('invalid option');
+		header("HTTP/1.1 400 Bad Request");
+		echo "<!DOCTYPE html>\n";
+		echo "<html>\n";
+		echo "  <head><title>400 Bad Request</title></head>\n";
+		echo "  <body bgcolor=\"white\">\n";
+		echo "    <center><h1>400 Bad Request</h1></center>\n";
+		echo "  </body>\n";
+		echo "</html>\n";
+		exit();
 	}
 
 //validate the option_action
 	if (!empty($option_action) && !in_array($option_action, $voicemail_actions, true)) {
-		die('invalid action');
+		header("HTTP/1.1 400 Bad Request");
+		echo "<!DOCTYPE html>\n";
+		echo "<html>\n";
+		echo "  <head><title>400 Bad Request</title></head>\n";
+		echo "  <body bgcolor=\"white\">\n";
+		echo "    <center><h1>400 Bad Request</h1></center>\n";
+		echo "  </body>\n";
+		echo "</html>\n";
+		exit();
 	}
 
 //handle search term
 	$parameters = [];
-	$search = check_str($_GET["search"]);
+	$search = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["search"] ?? '');
 	if (strlen($search) > 0) {
 		$sql_mod = "and ( ";
 		$sql_mod .= "CAST(voicemail_id AS TEXT) LIKE :search ";
@@ -99,7 +115,11 @@
 	}
 	if (strlen($order_by) < 1) {
 		$order_by = "voicemail_id";
-		$order = "ASC";
+	}
+
+//ensure only two possible values for $order
+	if ($order != 'DESC') {
+		$order = 'ASC';
 	}
 
 //get the settings to use for this domain and user

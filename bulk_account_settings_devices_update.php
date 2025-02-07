@@ -64,17 +64,24 @@
 //check for the ids
 	if (!empty($_REQUEST)) {
 
-		$device_uuids = $_REQUEST["id"];
-		$option_selected = check_str($_REQUEST["option_selected"]);
-		$new_setting = check_str($_REQUEST["new_setting"]);
+		$device_uuids = preg_replace('#[^a-fA-F0-9\-]#', '', $_REQUEST["id"] ?? '');
+		$option_selected = preg_replace('#[^a-zA-Z0-9_]#', '', $_REQUEST["option_selected"] ?? '');
+		$new_setting = preg_replace('#[^a-zA-Z0-9_]#', '', $_REQUEST["new_setting"] ?? '');
 
 		//ensure the option selected is valid
 		if (!empty($option_selected) && !in_array($option_selected, $device_options)) {
-			die('invalid option');
+			header("HTTP/1.1 400 Bad Request");
+			echo "<!DOCTYPE html>\n";
+			echo "<html>\n";
+			echo "  <head><title>400 Bad Request</title></head>\n";
+			echo "  <body bgcolor=\"white\">\n";
+			echo "    <center><h1>400 Bad Request</h1></center>\n";
+			echo "  </body>\n";
+			echo "</html>\n";
+			exit();
 		}
 
 		foreach($device_uuids as $device_uuid) {
-			$device_uuid = check_str($device_uuid);
 			if (is_uuid($device_uuid)) {
 				//line settings
 				if (preg_match ('/line/', $option_selected)) {

@@ -67,19 +67,27 @@
 	$settings = new settings(['database' => $database, 'domain_uuid' => $domain_uuid, 'user_uuid' => $user_uuid]);
 
 //get the http values and set them as variables
-	$order_by = check_str($_GET["order_by"]);
-	$order = check_str($_GET["order"]);
-	$option_selected = check_str($_GET["option_selected"]);
+	$order_by = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["order_by"] ?? '');
+	$order = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["order"] ?? '');
+	$option_selected = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["option_selected"] ?? '');
 
 //validate the option_selected
 	if (!empty($option_selected) && !in_array($option_selected, $extension_options)) {
-		die('invalid option');
+		header("HTTP/1.1 400 Bad Request");
+		echo "<!DOCTYPE html>\n";
+		echo "<html>\n";
+		echo "  <head><title>400 Bad Request</title></head>\n";
+		echo "  <body bgcolor=\"white\">\n";
+		echo "    <center><h1>400 Bad Request</h1></center>\n";
+		echo "  </body>\n";
+		echo "</html>\n";
+		exit();
 	}
 
 //handle search term
 	$parameters = [];
 	$sql_mod = '';
-	$search = check_str($_GET["search"]);
+	$search = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["search"] ?? '');
 	if (!empty($search)) {
 		$sql_mod = "and ( ";
 		$sql_mod .= "lower(extension) like :search ";
@@ -97,9 +105,13 @@
 		$sql_mod .= ") ";
 		$parameters['search'] = '%'.strtolower($search).'%';
 	}
-	if (strlen($order_by) < 1) {
+	if (empty($order_by)) {
 		$order_by = "extension";
-		$order = "ASC";
+	}
+
+//ensure only two possible values for $order
+	if ($order != 'DESC') {
+		$order = 'ASC';
 	}
 
 //get total extension count from the database
@@ -115,13 +127,18 @@
 
 //prepare to page the results
 	$rows_per_page = intval($settings->get('domain', 'paging', 50));
-	$url_params = "&search=".$search."&option_selected=".$option_selected;
+	$page = intval(preg_replace('#[^0-9]#', '', $_GET['page'] ?? 0));
+	$offset = $rows_per_page * $page;
 	if ($rows_per_page > 0) {
-		if (!isset($_GET['page'])) { $_GET['page'] = 0; }
-		$_GET['page'] = check_str($_GET['page']);
+		$url_params = '';
+		if (!empty($search)) {
+			$url_params .= (empty($url_params) ? '' : '&') . "search=".$search;
+		}
+		if (!empty($option_selected)) {
+			$url_params .= (empty($url_params) ? '' : '&') ."option_selected=".$option_selected;
+		}
 		list($paging_controls_mini, $rows_per_page, $var_3) = paging($total_extensions, $url_params, $rows_per_page, true); //top
 		list($paging_controls, $rows_per_page, $var_3) = paging($total_extensions, $url_params, $rows_per_page); //bottom
-		$offset = $rows_per_page * intval($_GET['page']);
 	}
 
 //get all the extensions from the database

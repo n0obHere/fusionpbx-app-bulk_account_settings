@@ -50,68 +50,129 @@
 //set valid user options
 	$user_options = [];
 	$user_options[] = 'user_enabled';
-	$user_options[] = 'group';
-	$user_options[] = 'password';
 	$user_options[] = 'user_status';
+	$user_options[] = 'password';
 	$user_options[] = 'time_zone';
+	$user_options[] = 'group';
+
+//get list of groups where group_uuid => group_name
+	$groups = [];
+	$sql = "select group_uuid, group_name, group_level from v_groups";
+	$rows = $database->select($sql);
+	if (!empty($rows)) {
+		foreach ($rows as $row) {
+			$groups[$row['group_uuid']] = $row['group_name'];
+			$group_levels[$row['group_uuid']] = intval($row['group_level'] ?? 0);
+		}
+	}
+
+//ensure the user level is available
+	if (empty($_SESSION['user_level'])) {
+		$sql = "select max(group_level) as level from v_user_groups ug";
+		$sql .= " left join v_groups g on g.group_uuid = ug.group_uuid";
+		$sql .= " where user_uuid = :user_uuid";
+		$parameters = [];
+		$parameters['user_uuid'] = $_SESSION['user_uuid'];
+		$result = $database->select($sql, $parameters, 'column');
+		if (!empty($result)) {
+			$_SESSION['user_level'] = intval($result);
+		}
+	} else {
+		$_SESSION['user_level'] = 0;
+	}
 
 //check for the ids
 	if (!empty($_REQUEST)) {
-		$user_uuids = $_REQUEST["id"];
-		$option_selected = $_REQUEST["option_selected"];
+		$user_uuids = preg_replace('#[^a-fA-F0-9_\-]#', '', $_REQUEST['id'] ?? '');
+		$option_selected = preg_replace('#[^a-zA-Z0-9_]#', '', $_REQUEST['option_selected'] ?? '');
+		$action = preg_replace('#[^a-zA-Z0-9_]#', '', $_REQUEST['action'] ?? 'update');
 		if (!in_array($option_selected, $user_options, true)) {
-			die('Invalid option');
+			header('HTTP/1.1 400 Bad Request');
+			echo "<!DOCTYPE html>\n";
+			echo "<html>\n";
+			echo "  <head><title>400 Bad Request</title></head>\n";
+			echo "  <body bgcolor=\"white\">\n";
+			echo "    <center><h1>400 Bad Request</h1></center>\n";
+			echo "  </body>\n";
+			echo "</html>\n";
+			exit();
 		}
 		$new_setting = $_REQUEST["new_setting"];
-		$i = 0;
-		foreach($user_uuids as $user_uuid) {
-			$user_uuid = check_str($user_uuid);
-			if (is_uuid($user_uuid)) {
-				//user_status or user_enabled
-				if($option_selected == "user_status" || $option_selected == "user_enabled"){
+		foreach($user_uuids as $i => $user_uuid) {
+			//ensure valid uuid
+			if (!is_uuid($user_uuid)) {
+				continue;
+			}
+			switch ($option_selected) {
+				case 'user_status':
+				case 'user_enabled':
 					$array["users"][$i]["domain_uuid"] = $domain_uuid;
 					$array["users"][$i]["user_uuid"] = $user_uuid;
 					$array["users"][$i][$option_selected] = $new_setting;
-				}
-
-				//password
-				if($option_selected == "password"){
+					break;
+				case 'password':
 					$array["users"][$i]["domain_uuid"] = $domain_uuid;
 					$array["users"][$i]["user_uuid"] = $user_uuid;
 					// set strength from 0 to 4
 					$password_strength = 0;
-					$password_strength += intval($settings->get('user', 'password_number', true));
+					$password_strength += intval($settings->get('user', 'password_number'   , true));
 					$password_strength += intval($settings->get('user', 'password_lowercase', true));
 					$password_strength += intval($settings->get('user', 'password_uppercase', true));
-					$password_strength += intval($settings->get('user', 'password_special', true));
+					$password_strength += intval($settings->get('user', 'password_special'  , true));
 					//generate a password using strength and length (default of 20 characters if not set)
 					$array['users'][$i]['password'] = generate_password($settings->get('user', 'password_length', 20), $password_strength);
-				}
-
-				//timezone
-				if($option_selected == "time_zone"){
-					$sql = 'select user_setting_uuid from v_user_settings ';
-					$sql .= 'where domain_uuid = :domain_uuid ';
-					$sql .= 'and user_uuid = :user_uuid ';
-					$sql .= "and user_setting_subcategory = 'time_zone' ";
+					break;
+				case 'time_zone':
+					// get the existing user_setting_uuid
+					$sql = "select user_setting_uuid from v_user_settings"
+						. " where"
+						. "  user_uuid = :user_uuid"
+						. " and user_setting_category = 'domain'"
+						. " and user_setting_subcategory = 'time_zone'"
+						. " and user_setting_enabled = 'true' "
+						. "limit 1";
 					$parameters = [];
-					$parameters['domain_uuid'] = $domain_uuid;
 					$parameters['user_uuid'] = $user_uuid;
 					$user_setting_uuid = $database->select($sql, $parameters, 'column');
-					if (!empty($user_setting_uuid)) {
-						$array["user_settings"][$i]["domain_uuid"] = $domain_uuid;
-						$array["user_settings"][$i]["user_uuid"] = $user_uuid;
-						$array["user_settings"][$i]["user_setting_uuid"] = $user_setting_uuid;
-						$array["user_settings"][$i]["user_setting_value"] = $new_setting;
+					if (empty($user_setting_uuid) || !is_uuid($user_setting_uuid)) {
+						$user_setting_uuid = uuid();
+						//enable new records
+						$array["user_settings"][$i]["user_setting_enabled"] = true;
 					}
-				}
-				$i++;
+					$array['user_settings'][$i]['domain_uuid'             ] = $domain_uuid;
+					$array['user_settings'][$i]['user_uuid'               ] = $user_uuid;
+					$array['user_settings'][$i]['user_setting_uuid'       ] = $user_setting_uuid;
+					$array['user_settings'][$i]['user_setting_category'   ] = 'domain';
+					$array['user_settings'][$i]['user_setting_name'       ] = 'name';
+					$array['user_settings'][$i]['user_setting_subcategory'] = 'time_zone';
+					$array['user_settings'][$i]['user_setting_value'      ] = $new_setting;
+					break;
+				case 'group':
+					$group_uuid = preg_replace('#[^a-fA-F0-9\-]#', '', $_REQUEST['group_uuid']);
+					if (is_uuid($group_uuid) && !empty($groups[$group_uuid])) {
+						//check current user is not trying to assign to a higher level group
+						if ($_SESSION['user_level'] >= $group_levels[$group_uuid]) {
+							$array['user_groups'][$i]['domain_uuid'] = $domain_uuid;
+							$array['user_groups'][$i]['user_uuid'  ] = $user_uuid;
+							$array['user_groups'][$i]['group_uuid' ] = $group_uuid;
+							$array['user_groups'][$i]['group_name' ] = $groups[$group_uuid];
+						}
+					}
+					break;
 			}
 		}
-		$database->app_name = 'bulk_account_settings';
-		$database->app_uuid = '6b4e03c9-c302-4eaa-b16d-e1c5c08a2eb7';
-		$database->save($array);
-		//$message = $database->message;
+		if (!empty($array) && ($action == 'update' || $action == 'add')) {
+			$database->app_name = 'bulk_account_settings';
+			$database->app_uuid = '6b4e03c9-c302-4eaa-b16d-e1c5c08a2eb7';
+			$database->save($array);
+			//$message = $database->message;
+		}
+		if (!empty($array) && $action == 'remove') {
+			$database->app_name = 'bulk_account_settings';
+			$database->app_uuid = '6b4e03c9-c302-4eaa-b16d-e1c5c08a2eb7';
+			$database->delete($array);
+			//$message = $database->message;
+		}
 	}
 
 //redirect the browser

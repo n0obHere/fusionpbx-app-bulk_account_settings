@@ -68,23 +68,30 @@
 
 //check for the ids
 	if (!empty($_REQUEST)) {
-
-		$extension_uuids = $_REQUEST["id"];
-		$option_selected = $_REQUEST["option_selected"];
+		$extension_uuids = preg_replace('#[^a-fA-F0-9\-]#', '', $_REQUEST["id"] ?? '');
+		$option_selected = preg_replace('#[^a-zA-Z0-9_]#', '', $_REQUEST["option_selected"] ?? '');
 		//stop loading if it is not a valid value
 		if (!empty($option_selected) && !in_array($option_selected, $extension_options)) {
-			die('invalid option');
+			header("HTTP/1.1 400 Bad Request");
+			echo "<!DOCTYPE html>\n";
+			echo "<html>\n";
+			echo "  <head><title>400 Bad Request</title></head>\n";
+			echo "  <body bgcolor=\"white\">\n";
+			echo "    <center><h1>400 Bad Request</h1></center>\n";
+			echo "  </body>\n";
+			echo "</html>\n";
+			exit();
 		}
-		$new_setting = $_REQUEST["new_setting"];
+		$new_setting = preg_replace('#[^a-zA-Z0-9_\-]#', '',$_REQUEST["new_setting"] ?? '');
+		//prohibit double dash --
+		$new_setting = str_replace('--', '', $new_setting);
 		//set parameter for query
 		$parameters = [];
 		$parameters['domain_uuid'] = $domain_uuid;
 		//set the index and array for the save array
-		$i = 0;
 		$array = [];
 		$cache = new cache;
-		foreach($extension_uuids as $extension_uuid) {
-			$extension_uuid = check_str($extension_uuid);
+		foreach($extension_uuids as $i => $extension_uuid) {
 			if (is_uuid($extension_uuid)) {
 				//get the extensions array
 				$sql = "select extension, user_context, number_alias from v_extensions ";
@@ -109,7 +116,6 @@
 				if (permission_exists('number_alias') && strlen($number_alias) > 0) {
 					$cache->delete("directory:".$number_alias."@".$user_context);
 				}
-				$i++;
 			}
 		}
 		if (!empty($array)) {
