@@ -66,7 +66,7 @@
 
 		$device_uuids = preg_replace('#[^a-fA-F0-9\-]#', '', $_REQUEST["id"] ?? '');
 		$option_selected = preg_replace('#[^a-zA-Z0-9_]#', '', $_REQUEST["option_selected"] ?? '');
-		$new_setting = preg_replace('#[^a-zA-Z0-9_]#', '', $_REQUEST["new_setting"] ?? '');
+		$new_setting = preg_replace('#[^a-zA-Z0-9_/.]#', '', $_REQUEST["new_setting"] ?? '');
 
 		//ensure the option selected is valid
 		if (!empty($option_selected) && !in_array($option_selected, $device_options)) {
