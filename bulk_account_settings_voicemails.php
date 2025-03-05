@@ -205,7 +205,7 @@
 //show the content
 	echo "<div class='action_bar' id='action_bar'>\n";
 	echo "	<div class='heading'>\n";
-	echo "		<b>".$text['header-voicemails']."</b><div class='count'>".$total_voicemails."</div><br><br>\n";
+	echo "		<b>".$text['header-voicemails']."</b><div class='count'>".number_format($total_voicemails)."</div><br><br>\n";
 
 //options list
 	echo "		<form name='frm' method='get' id=option_selected>\n";
