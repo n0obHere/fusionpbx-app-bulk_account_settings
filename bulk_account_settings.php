@@ -17,7 +17,7 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2023
+	Portions created by the Initial Developer are Copyright (C) 2008-2025
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
@@ -43,22 +43,18 @@
 	$text = $language->get();
 
 //show the content
-	echo "<table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\">\n";
-	echo "  <tr>\n";
-	echo "	<td align='left' width='100%'>\n";
-	echo "		<b>".$text['header-bulk_account_settings']." </b><br>\n";
-	echo "	</td>\n";
-	echo "		<td align='right' width='100%' style='vertical-align: top;'>";
+	echo "<div class='action_bar' id='action_bar'>\n";
+	echo "	<div class='heading'><b>".$text['header-bulk_account_settings']."</b></div>\n";
+	echo "	<div class='actions'>\n";
 	echo "		<form method='get' action=''>\n";
-	echo "			<td style='vertical-align: top; text-align: right; white-space: nowrap;'>\n";
-	echo 				"<input type='button' class='btn' alt='".$text['button-devices']."' onclick=\"window.location='bulk_account_settings_devices.php'\" value='".$text['button-devices']."'>\n";
-	echo 				"<input type='button' class='btn' alt='".$text['button-extensions']."' onclick=\"window.location='bulk_account_settings_extensions.php'\" value='".$text['button-extensions']."'>\n";
-	echo 				"<input type='button' class='btn' alt='".$text['button-users']."' onclick=\"window.location='bulk_account_settings_users.php'\" value='".$text['button-users']."'>\n";
-	echo 				"<input type='button' class='btn' alt='".$text['button-voicemails']."' onclick=\"window.location='bulk_account_settings_voicemails.php'\" value='".$text['button-voicemails']."'>\n";
-//	echo 				"<input type='button' class='btn' alt='".$text['button-call_routing']."' onclick=\"window.location='bulk_account_settings_call_routing.php'\" value='".$text['button-call_routing']."'>\n";
-	echo "			</td>\n";
+	echo button::create(['type'=>'button','label'=>$text['button-devices'],'icon'=>'mobile-retro','onclick'=>"window.location='bulk_account_settings_devices.php'"]);
+	echo button::create(['type'=>'button','label'=>$text['button-extensions'],'icon'=>'suitcase','onclick'=>"window.location='bulk_account_settings_extensions.php'"]);
+	echo button::create(['type'=>'button','label'=>$text['button-users'],'icon'=>'user-group','onclick'=>"window.location='bulk_account_settings_users.php'"]);
+	echo button::create(['type'=>'button','label'=>$text['button-voicemails'],'icon'=>'envelope','onclick'=>"window.location='bulk_account_settings_voicemails.php'"]);
+	//echo button::create(['type'=>'button','label'=>$text['button-call_routing'],'onclick'=>"window.location='bulk_account_settings_call_routing.php'"]);
 	echo "		</form>\n";
-	echo "  </tr>\n";
-	echo "  </table>\n";
+	echo "	</div>\n";
+	echo "	<div style='clear: both;'></div>\n";
+	echo "</div>\n";
 //show the footer
 	require_once "resources/footer.php";
