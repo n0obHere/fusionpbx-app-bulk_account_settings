@@ -17,7 +17,7 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2016
+	Portions created by the Initial Developer are Copyright (C) 2008-2025
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
@@ -203,52 +203,43 @@
 	$destination = new destinations;
 
 //show the content
-	echo "<table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\">\n";
-	echo "  <tr>\n";
-	echo "	<td align='left' width='100%'>\n";
-	echo "		<div class='action_bar' id='action_bar'>\n";
-	echo "			<div class='heading'><b>".$text['header-voicemails']."</b><div class='count'>".$total_voicemails."</div></div><br>\n";
-	echo "		</div>\n";
+	echo "<div class='action_bar' id='action_bar'>\n";
+	echo "	<div class='heading'>\n";
+	echo "		<b>".$text['header-voicemails']."</b><div class='count'>".number_format($total_voicemails)."</div><br><br>\n";
 
 //options list
-	echo "<form name='frm' method='get' id=option_selected>\n";
-	echo "    <select class='formfld' name='option_selected'  onchange=\"this.form.submit();\">\n";
-	echo "    <option value=''>".$text['label-voicemail_null']."</option>\n";
+	echo "		<form name='frm' method='get' id=option_selected>\n";
+	echo "			<select class='formfld' name='option_selected'  onchange=\"this.form.submit();\">\n";
+	echo "				<option value=''>".$text['label-voicemail_null']."</option>\n";
 	foreach ($voicemail_options as $value) {
 		if ($option_selected === $value) {
 			$selected = ' selected="selected"';
 		} else {
 			$selected = '';
 		}
-		echo "    <option value='$value'$selected>".$text['label-'.$value]."</option>\n";
+		echo "			<option value='$value'$selected>".$text['label-'.$value]."</option>\n";
 	}
-	echo "    </select>\n";
-	echo "    </form>\n";
-	echo "<br />\n";
-	echo $text['description-voicemail_settings_description']."\n";
-	echo "</td>\n";
-
-	echo "		<td align='right' width='100%' style='vertical-align: top;'>";
-	echo "		<form method='get' action=''>\n";
-	echo "			<td style='vertical-align: top; text-align: right; white-space: nowrap;'>\n";
-	echo "				<input type='button' class='btn' style='width: 40px' alt='".$text['button-back']."' onclick=\"window.location='bulk_account_settings.php'\" value='".$text['button-back']."'>\n";
-	echo "				<input type='text' class='txt' style='width: 150px' name='search' id='search' value='".$search."'>";
-	echo "				<input type='hidden' class='txt' style='width: 150px' name='option_selected' id='option_selected' value='".$option_selected."'>";
-	echo "				<input type='submit' class='btn' name='submit' value='".$text['button-search']."'>";
-	if ($paging_controls_mini != '') {
-		echo 			"<span style='margin-left: 15px;'>".$paging_controls_mini."</span>\n";
-	}
-	echo "			</td>\n";
+	echo "			</select>\n";
 	echo "		</form>\n";
-	echo "  </tr>\n";
+	echo "		<br />\n";
+	echo "		".$text['description-voicemail_settings_description']."\n";
+	echo "	</div>\n";
 
-	echo "	<tr>\n";
-	echo "		<td colspan='2'>\n";
-	echo "			".$text['description-voicemails_settings']."\n";
-	echo "		</td>\n";
-	echo "	</tr>\n";
-	echo "</table>\n";
-	echo "<br />";
+	echo "	<div class='actions'>\n";
+	echo "		<form method='get' action=''>\n";
+	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$_SESSION['theme']['button_icon_back'],'id'=>'btn_back','style'=>'margin-right: 15px; position: sticky; z-index: 5;','onclick'=>"window.location='bulk_account_settings.php'"]);
+	echo "			<input type='text' class='txt' style='width: 150px' name='search' id='search' value='".escape($search)."' placeholder=\"".$text['label-search']."\" onkeydown=''>";
+	echo "			<input type='hidden' class='txt' style='width: 150px' name='option_selected' id='option_selected' value='".escape($option_selected)."'>";
+	echo "			<form id='form_search' class='inline' method='get'>\n";
+	echo button::create(['label'=>$text['button-search'],'icon'=>$_SESSION['theme']['button_icon_search'],'type'=>'submit','id'=>'btn_search']);
+	if (!empty($paging_controls_mini)) {
+		echo "			<span style='margin-left: 15px;'>".$paging_controls_mini."</span>\n";
+	}
+	echo "			</form>\n";
+	echo "		</form>\n";
+	echo "	</div>\n";
+	echo "	<div style='clear: both;'></div>\n";
+	echo "</div>\n";
 
 	if (strlen($option_selected) > 0) {
 		echo "<form name='voicemails' method='post' action='bulk_account_settings_voicemails_update.php'>\n";
