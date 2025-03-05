@@ -17,7 +17,7 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2016
+	Portions created by the Initial Developer are Copyright (C) 2008-2025
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
@@ -231,13 +231,15 @@
 	echo "		<td align='right' width='100%' style='vertical-align: top;'>";
 	echo "		<form method='get' action=''>\n";
 	echo "			<td style='vertical-align: top; text-align: right; white-space: nowrap;'>\n";
-	echo "				<input type='button' class='btn' style='width: 40px' alt='".$text['button-back']."' onclick=\"window.location='bulk_account_settings.php'\" value='".$text['button-back']."'>\n";
-	echo "				<input type='text' class='txt' style='width: 150px' name='search' id='search' value='".$search."'>";
-	echo "				<input type='hidden' class='txt' style='width: 150px' name='option_selected' id='option_selected' value='".$option_selected."'>";
-	echo "				<input type='submit' class='btn' name='submit' value='".$text['button-search']."'>";
-	if ($paging_controls_mini != '') {
-		echo 			"<span style='margin-left: 15px;'>".$paging_controls_mini."</span>\n";
+	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$_SESSION['theme']['button_icon_back'],'id'=>'btn_back','style'=>'margin-right: 15px; position: sticky; z-index: 5;','onclick'=>"window.location='bulk_account_settings.php'"]);
+	echo "				<input type='text' class='txt' style='width: 150px' name='search' id='search' value='".escape($search)."' placeholder=\"".$text['label-search']."\" onkeydown=''>";
+	echo "				<input type='hidden' class='txt' style='width: 150px' name='option_selected' id='option_selected' value='".escape($option_selected)."'>";
+	echo "				<form id='form_search' class='inline' method='get'>\n";
+	echo button::create(['label'=>$text['button-search'],'icon'=>$_SESSION['theme']['button_icon_search'],'type'=>'submit','id'=>'btn_search']);
+	if (!empty($paging_controls_mini)) {
+		echo "				<span style='margin-left: 15px;'>".$paging_controls_mini."</span>\n";
 	}
+	echo "				</form>\n";
 	echo "			</td>\n";
 	echo "		</form>\n";
 	echo "  </tr>\n";
