@@ -56,6 +56,7 @@
 	$extension_options[] = 'outbound_caller_id_name';
 	$extension_options[] = 'outbound_caller_id_number';
 	$extension_options[] = 'toll_allow';
+	$extension_options[] = 'sip_force_contact';
 	$extension_options[] = 'sip_force_expires';
 	$extension_options[] = 'sip_bypass_media';
 	$extension_options[] = 'mwi_account';

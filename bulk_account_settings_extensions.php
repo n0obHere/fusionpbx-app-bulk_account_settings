@@ -56,6 +56,7 @@
 	$extension_options[] = 'outbound_caller_id_name';
 	$extension_options[] = 'outbound_caller_id_number';
 	$extension_options[] = 'toll_allow';
+	$extension_options[] = 'sip_force_contact';
 	$extension_options[] = 'sip_force_expires';
 	$extension_options[] = 'sip_bypass_media';
 	$extension_options[] = 'mwi_account';
@@ -266,6 +267,19 @@
 			echo $text["description-".$option_selected.""]."\n";
 			echo "</td>\n";
         }
+		//option is SIP Force Contact
+		if ($option_selected == 'sip_force_contact') {
+			echo "<td class='vtable' align='left'>\n";
+			echo "    <select class='formfld' name='new_setting'>\n";
+			echo "      <option value=''></option>\n";
+			echo "      <option value='NDLB-connectile-dysfunction'>".$text['label-rewrite_contact_ip_and_port']."</option>\n";
+			echo "      <option value='NDLB-connectile-dysfunction-2.0'>".$text['label-rewrite_contact_ip_and_port_2']."</option>\n";
+			echo "      <option value='NDLB-tls-connectile-dysfunction'>".$text['label-rewrite_tls_contact_port']."</option>\n";
+			echo "    </select>\n";
+			echo "    <br />\n";
+			echo $text["description-".$option_selected.""]."\n";
+			echo "</td>\n";
+		}
 		//option is SIP Bypass Media
 		if ($option_selected == 'sip_bypass_media') {
 			echo "<td class='vtable' align='left'>\n";
