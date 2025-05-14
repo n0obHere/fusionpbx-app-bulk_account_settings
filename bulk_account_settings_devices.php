@@ -97,9 +97,9 @@
 	$parameters['domain_uuid'] = $domain_uuid;
 	$result = $database->select($sql, $parameters, 'column');
 	if (!empty($result)) {
-		$numeric_devices = intval($result);
+		$total_devices = intval($result);
 	} else {
-		$numeric_devices = 0;
+		$total_devices = 0;
 	}
 
 //prepare to page the results
@@ -186,7 +186,7 @@
 //show the content
 	echo "<div class='action_bar' id='action_bar'>\n";
 	echo "	<div class='heading'>\n";
-	echo "		<b>".$text['header-devices']."</b><div class='count'>".number_format($numeric_devices)."</div><br><br>\n";
+	echo "		<b>".$text['header-devices']."</b><div class='count'>".number_format($total_devices)."</div><br><br>\n";
 
 //options list
 	echo "		<form name='frm' method='get' id=option_selected>\n";

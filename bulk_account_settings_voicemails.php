@@ -128,7 +128,12 @@
 //get total voicemail count from the database
 	$sql = "select count(voicemail_uuid) as num_rows from v_voicemails where domain_uuid = :domain_uuid ".$sql_mod." ";
 	$parameters['domain_uuid'] = $domain_uuid;
-	$total_voicemails = $database->select($sql, $parameters, 'column');
+	$result = $database->select($sql, $parameters, 'column');
+	if (!empty($result)) {
+		$total_voicemails = intval($result);
+	} else {
+		$total_voicemails = 0;
+	}
 
 //prepare to page the results
 	$rows_per_page = $settings->get('domain', 'paging', 50);
