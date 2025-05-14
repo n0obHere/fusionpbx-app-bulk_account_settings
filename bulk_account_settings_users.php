@@ -85,10 +85,14 @@
 	}
 
 //get total extension count from the database
-	$sql = "select count(user_uuid) as num_rows from v_users where domain_uuid = :domain_uuid ";
-	$sql .= $sql_mod;
+	$sql = "select count(user_uuid) as num_rows from v_users where domain_uuid = :domain_uuid ".$sql_mod." ";
 	$parameters['domain_uuid'] = $domain_uuid;
-	$num_rows = $database->select($sql, $parameters, 'column');
+	$result = $database->select($sql, $parameters, 'column');
+	if (!empty($result)) {
+		$total_users = intval($result);
+	} else {
+		$total_users = 0;
+	}
 
 //prepare to page the results
 	$rows_per_page = intval($settings->get('domain', 'paging', 50));
@@ -267,7 +271,7 @@
 //show the content
 	echo "<div class='action_bar' id='action_bar'>\n";
 	echo "	<div class='heading'>\n";
-	echo "		<b>".$text['header-users']."</b><div class='count'>".number_format($num_rows)."</div><br><br>\n";
+	echo "		<b>".$text['header-users']."</b><div class='count'>".number_format($total_users)."</div><br><br>\n";
 
 //options list
 	echo "<form name='frm' method='get' id=option_selected>\n";
