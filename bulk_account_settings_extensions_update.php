@@ -83,7 +83,7 @@
 			echo "</html>\n";
 			exit();
 		}
-		$new_setting = preg_replace('#[^a-zA-Z0-9_ \-/@\.\$]#', '',$_REQUEST["new_setting"] ?? '');
+		$new_setting = preg_replace('#[^a-zA-Z0-9_ \-/@\.\$\:]#', '',$_REQUEST["new_setting"] ?? '');
 		//prohibit double dash --
 		$new_setting = str_replace('--', '', $new_setting);
 		//set parameter for query
