@@ -17,7 +17,7 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2023
+	Portions created by the Initial Developer are Copyright (C) 2008-2025
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
@@ -29,10 +29,7 @@
 	require_once "resources/check_auth.php";
 
 //check permissions
-	if (permission_exists('bulk_account_settings_devices')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('bulk_account_settings_devices')) {
 		echo "access denied";
 		exit;
 	}
@@ -130,5 +127,5 @@
 
 //redirect the browser
 	$_SESSION["message"] = $text['message-update'];
-	header("Location: bulk_account_settings_devices.php?option_selected=".$option_selected."");
+	header("Location: bulk_account_settings_devices.php?option_selected=".$option_selected);
 	return;
