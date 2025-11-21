@@ -30,11 +30,7 @@
 	require_once "resources/paging.php";
 
 //check permissions
-	require_once "resources/check_auth.php";
-	if (permission_exists('bulk_account_settings_devices')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('bulk_account_settings_devices')) {
 		echo "access denied";
 		exit;
 	}
@@ -175,13 +171,8 @@
 	}
 
 //additional includes
-	require_once "resources/header.php";
 	$document['title'] = $text['title-devices_settings'];
-
-//set the alternating styles
-	$c = 0;
-	$row_style["0"] = "row_style0";
-	$row_style["1"] = "row_style1";
+	require_once "resources/header.php";
 
 //show the content
 	echo "<div class='action_bar' id='action_bar'>\n";
@@ -209,10 +200,10 @@
 	echo "	<div class='actions'>\n";
 	echo "		<form method='get' action=''>\n";
 	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$_SESSION['theme']['button_icon_back'],'id'=>'btn_back','style'=>'margin-right: 15px; position: sticky; z-index: 5;','onclick'=>"window.location='bulk_account_settings.php'"]);
-	echo "			<input type='text' class='txt' style='width: 150px' name='search' id='search' value='".escape($search)."' placeholder=\"".$text['label-search']."\" onkeydown=''>";
+	echo 			"<input type='text' class='txt list-search' name='search' id='search' style='margin-left: 0 !important;' value=\"".escape($search)."\" placeholder=\"".$text['label-search']."\" onkeydown=''>";
 	echo "			<input type='hidden' class='txt' style='width: 150px' name='option_selected' id='option_selected' value='".escape($option_selected)."'>";
 	echo "			<form id='form_search' class='inline' method='get'>\n";
-	echo button::create(['label'=>$text['button-search'],'icon'=>$_SESSION['theme']['button_icon_search'],'type'=>'submit','id'=>'btn_search']);
+	echo button::create(['label'=>$text['button-search'],'icon'=>$settings->get('theme', 'button_icon_search'),'type'=>'submit','id'=>'btn_search']);
 	if (!empty($paging_controls_mini)) {
 		echo "			<span style='margin-left: 15px;'>".$paging_controls_mini."</span>\n";
 	}
@@ -340,45 +331,43 @@
 	}
 
 	echo "<div class='card'>\n";
-	echo "<table class='tr_hover' width='100%' border='0' cellpadding='0' cellspacing='0'>\n";
-	echo "<tr>\n";
+	echo "<table class='list'>\n";
+	echo "<tr class='list-header'>\n";
 	if (is_array($directory)) {
 		echo "<th style='width: 30px; text-align: center; padding: 0px;'><input type='checkbox' id='chk_all' onchange=\"(this.checked) ? check('all') : check('none');\"></th>";
 	}
-	echo th_order_by('device_address', $text['label-device_address'], $order_by,$order,'','',"option_selected=".$option_selected."&search=".$search."");
-	echo th_order_by('device_label', $text['label-device_label'], $order_by, $order,'','',"option_selected=".$option_selected."&search=".$search."");
+	echo th_order_by('device_address', $text['label-device_address'], $order_by, $order, null, null, $param);
+	echo th_order_by('device_label', $text['label-device_label'], $order_by, $order, null, null, $param);
 	if (preg_match('/line_(.)/',($option_selected ?? ''))) {
-			echo th_order_by($option_selected, $text["label-".$option_selected.""], $order_by,$order,'','',"option_selected=".$option_selected."&search=".$search."");
+			echo th_order_by($option_selected, $text["label-".$option_selected.""], $order_by, $order, null, null, $param);
 		}
-	echo th_order_by('device_vendor', $text['label-device_vendor'], $order_by, $order,'','',"option_selected=".$option_selected."&search=".$search."");
-	echo th_order_by('device_template', $text['label-device_template'], $order_by, $order,'','',"option_selected=".$option_selected."&search=".$search."");
-	echo th_order_by('device_label', $text['label-device_profile'], $order_by, $order,'','',"option_selected=".$option_selected."&search=".$search."");
-	echo th_order_by('device_enabled', $text['label-device_enabled'], $order_by, $order,'','',"option_selected=".$option_selected."&search=".$search."");
-	echo th_order_by('device_description', $text['label-device_description'], $order_by, $order,'','',"option_selected=".$option_selected."&search=".$search."");
+	echo th_order_by('device_vendor', $text['label-device_vendor'], $order_by, $order, null, null, $param);
+	echo th_order_by('device_template', $text['label-device_template'], $order_by, $order, null, null, $param);
+	echo th_order_by('device_label', $text['label-device_profile'], $order_by, $order, null, null, $param);
+	echo th_order_by('device_enabled', $text['label-device_enabled'], $order_by, $order, null, "class='center'", $param);
+	echo th_order_by('device_description', $text['label-device_description'], $order_by, $order, null, null, $param);
 	echo "</tr>\n";
 
 	$device_ids = [];
 	if (is_array($directory)) {
 		foreach ($directory as $key => $row) {
-			$tr_link = (permission_exists('device_edit')) ? " href='/app/devices/device_edit.php?id=".$row['device_uuid']."'" : null;
-			echo "<tr ".$tr_link.">\n";
-
-			echo "	<td valign='top' class='".$row_style[$c]." tr_link_void' style='text-align: center; vertical-align: middle; padding: 0px;'>";
+			$list_row_url = permission_exists('device_edit') ? "/app/devices/device_edit.php?id=".urlencode($row['device_uuid']) : null;
+			echo "<tr class='list-row' href='".$list_row_url."'>\n";
+			echo "	<td class='checkbox'>";
 			echo "		<input type='checkbox' name='id[]' id='checkbox_".escape($row['device_uuid'])."' value='".escape($row['device_uuid'])."' onclick=\"if (!this.checked) { document.getElementById('chk_all').checked = false; }\">";
 			echo "	</td>";
 			$device_ids[] = 'checkbox_'.$row['device_uuid'];
-			echo "	<td valign='top' class='".$row_style[$c]."'> ".escape(format_device_address($row['device_address']))."&nbsp;</td>\n";
-			echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row['device_label'])."&nbsp;</td>\n";
+			echo "	<td class='no-wrap'><a href='".$list_row_url."'>".escape(format_device_address($row['device_address']))."</a>";
+			echo "	<td>".escape($row['device_label'])."&nbsp;</td>\n";
 			if (preg_match ('/line_/',($option_selected ?? ''))) {
-				echo "	<td valign='top' class='".$row_style[$c]."'> ".$row[$option_selected]."&nbsp;</td>\n";
+				echo "	<td> ".$row[$option_selected]."&nbsp;</td>\n";
 			}
-			echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row['device_vendor'])."&nbsp;</td>\n";
-			echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row['device_template'])."&nbsp;</td>\n";
-			echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row['device_profile_name'])."&nbsp;</td>\n";
-			echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row['device_enabled'])."&nbsp;</td>\n";
-			echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row['device_description'])."&nbsp;</td>\n";
+			echo "	<td>".escape($row['device_vendor'])."&nbsp;</td>\n";
+			echo "	<td>".escape($row['device_template'])."&nbsp;</td>\n";
+			echo "	<td>".escape($row['device_profile_name'])."&nbsp;</td>\n";
+			echo "	<td class='center'>".$text['label-'.(!empty($row['device_enabled']) ? 'true' : 'false')]."&nbsp;</td>\n";
+			echo "	<td>".escape($row['device_description'])."&nbsp;</td>\n";
 			echo "</tr>\n";
-			$c = ($c) ? 0 : 1;
 		}
 	}
 
