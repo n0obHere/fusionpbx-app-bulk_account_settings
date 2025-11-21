@@ -27,13 +27,9 @@
 //includes files
 	require_once dirname(__DIR__, 2) . "/resources/require.php";
 	require_once "resources/check_auth.php";
-	require_once "resources/paging.php";
 
 //check permissions
-	if (permission_exists('bulk_account_settings_view')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('bulk_account_settings_view')) {
 		echo "access denied";
 		exit;
 	}
@@ -42,19 +38,22 @@
 	$language = new text;
 	$text = $language->get();
 
+//show the header
+	$document['title'] = $text['title-bulk_account_settings'];
+	require_once "resources/header.php";
+
 //show the content
 	echo "<div class='action_bar' id='action_bar'>\n";
 	echo "	<div class='heading'><b>".$text['header-bulk_account_settings']."</b></div>\n";
 	echo "	<div class='actions'>\n";
-	echo "		<form method='get' action=''>\n";
-	echo button::create(['type'=>'button','label'=>$text['button-devices'],'icon'=>'mobile-retro','onclick'=>"window.location='bulk_account_settings_devices.php'"]);
-	echo button::create(['type'=>'button','label'=>$text['button-extensions'],'icon'=>'suitcase','onclick'=>"window.location='bulk_account_settings_extensions.php'"]);
-	echo button::create(['type'=>'button','label'=>$text['button-users'],'icon'=>'user-group','onclick'=>"window.location='bulk_account_settings_users.php'"]);
-	echo button::create(['type'=>'button','label'=>$text['button-voicemails'],'icon'=>'envelope','onclick'=>"window.location='bulk_account_settings_voicemails.php'"]);
-	//echo button::create(['type'=>'button','label'=>$text['button-call_routing'],'onclick'=>"window.location='bulk_account_settings_call_routing.php'"]);
-	echo "		</form>\n";
+	echo "<a href='bulk_account_settings_devices.php'>".button::create(['type'=>'button','label'=>$text['button-devices'],'icon'=>'mobile-retro'])."</a>";
+	echo "<a href='bulk_account_settings_extensions.php'>".button::create(['type'=>'button','label'=>$text['button-extensions'],'icon'=>'suitcase'])."</a>";
+	echo "<a href='bulk_account_settings_users.php'>".button::create(['type'=>'button','label'=>$text['button-users'],'icon'=>'user-group'])."</a>";
+	echo "<a href='bulk_account_settings_voicemails.php'>".button::create(['type'=>'button','label'=>$text['button-voicemails'],'icon'=>'envelope'])."</a>";
+	// echo "<a href='bulk_account_settings_call_routing.php'>".button::create(['type'=>'button','label'=>$text['button-call_routing']])."</a>";
 	echo "	</div>\n";
 	echo "	<div style='clear: both;'></div>\n";
 	echo "</div>\n";
+
 //show the footer
 	require_once "resources/footer.php";
