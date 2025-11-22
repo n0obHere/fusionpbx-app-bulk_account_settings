@@ -178,22 +178,6 @@
 	echo "<div class='action_bar' id='action_bar'>\n";
 	echo "	<div class='heading'>\n";
 	echo "		<b>".$text['header-devices']."</b><div class='count'>".number_format($total_devices)."</div><br><br>\n";
-
-//options list
-	echo "		<form name='frm' method='get' id=option_selected>\n";
-	echo "			<select class='formfld' name='option_selected'  onchange=\"this.form.submit();\">\n";
-	echo "				<option value=''></option>\n";
-	foreach ($device_options as $option) {
-		if ($option_selected === $option) {
-			$selected = ' selected="selected"';
-		} else {
-			$selected = '';
-		}
-		echo "			<option value='$option'$selected>".$text['label-'.$option]."</option>\n";
-	}
-	echo "  		</select>\n";
-	echo "		</form>\n";
-	echo "		<br />\n";
 	echo "		".$text['description-devices_settings']."\n";
 	echo "	</div>\n";
 
@@ -213,24 +197,51 @@
 	echo "	<div style='clear: both;'></div>\n";
 	echo "</div>\n";
 
+//options list
+	echo "<div class='card'>\n";
+	echo "<div class='form_grid'>\n";
+
+	echo "	<div class='form_set'>\n";
+	echo "		<div class='label'>\n";
+	echo "			".$text['label-setting']."\n";
+	echo "		</div>\n";
+	echo "		<div class='field'>\n";
+	echo "			<form name='frm' method='get' id=option_selected>\n";
+	echo "			<select class='formfld' name='option_selected'  onchange=\"this.form.submit();\">\n";
+	echo "				<option value=''></option>\n";
+	foreach ($device_options as $option) {
+		if ($option_selected === $option) {
+			$selected = ' selected="selected"';
+		} else {
+			$selected = '';
+		}
+		echo "			<option value='$option'$selected>".$text['label-'.$option]."</option>\n";
+	}
+	echo "  		</select>\n";
+	echo "			</form>\n";
+	echo "		</div>\n";
+	echo "	</div>\n";
+
 	if (!empty($option_selected)) {
-		echo "<form name='devices' method='post' action='bulk_account_settings_devices_update.php'>\n";
-		echo "<input class='formfld' type='hidden' name='option_selected' maxlength='255' value=\"".escape($option_selected)."\">\n";
-		echo "<table width='auto' border='0' cellpadding='0' cellspacing='0'>\n";
-		echo "<tr>\n";
-		//options for True/False
+
+		echo "	<div class='form_set'>\n";
+		echo "		<div class='label'>\n";
+		echo "			".$text['label-value']."";
+		echo "		</div>\n";
+		echo "		<div class='field'>\n";
+
+		echo "			<form name='devices' method='post' action='bulk_account_settings_devices_update.php'>\n";
+		echo "			<input class='formfld' type='hidden' name='option_selected' maxlength='255' value=\"".escape($option_selected)."\">\n";
+
+		//enabled
 		if ($option_selected == 'device_enabled') {
-			echo "<td class='vtable' align='left'>\n";
-			echo "    <select class='formfld' name='new_setting'>\n";
-			echo "    <option value='true'>".$text['label-true']."</option>\n";
-			echo "    <option value='false'>".$text['label-false']."</option>\n";
-			echo "    </select>\n";
-			echo "    <br />\n";
-			echo $text["description-".$option_selected.""]."\n";
-			echo "</td>\n";
+			echo "		<select class='formfld' name='new_setting'>\n";
+			echo "			<option value='true'>".$text['label-true']."</option>\n";
+			echo "			<option value='false'>".$text['label-false']."</option>\n";
+			echo "		</select>\n";
 		}
 
-		//option is Device Profile
+		//device profile
 		if ($option_selected == 'device_profile_uuid' && permission_exists('device_profile_edit')) {
 			$parameters = [];
 			$sql = "select * from v_device_profiles ";
@@ -244,28 +255,24 @@
 				$result_count = 0;
 			}
 			unset ($sql);
-			echo "<td class='vtable' align='left'>\n";
-			echo "    <select class='formfld' name='new_setting'>\n";
-			echo "				<option value=''></option>\n";
+
+			echo "		<select class='formfld' name='new_setting'>\n";
+			echo "			<option value=''></option>\n";
 			if ($result_count > 0) {
 				foreach ($result as $row) {
-					echo "			<option value='".escape($row['device_profile_uuid'])."' ".(($row['device_profile_uuid'] == $device_profile_uuid) ? "selected='selected'" : null).">".escape($row['device_profile_name'])." ".(($row['domain_uuid'] == '') ? "&nbsp;&nbsp;(".$text['select-global'].")" : null)."</option>\n";
+					echo "	<option value='".escape($row['device_profile_uuid'])."'>".escape($row['device_profile_name'])." ".(($row['domain_uuid'] == '') ? "&nbsp;&nbsp;(".$text['select-global'].")" : null)."</option>\n";
 				}
 			}
-			echo "    </select>\n";
-			echo "    <br />\n";
-			echo $text["description-".$option_selected.""]."\n";
-			echo "</td>\n";
+			echo "		</select>\n";
 		}
 
-		//option is Device Templates
+		//device template
 		if ($option_selected == 'device_template' && permission_exists('device_template')) {
 			$device = new device;
 			$template_dir = $device->get_template_dir();
 
-			echo "<td class='vtable' align='left'>\n";
-			echo "    <select class='formfld' name='new_setting'>\n";
-			echo "<option value=''></option>\n";
+			echo "		<select class='formfld' name='new_setting'>\n";
+			echo "			<option value=''></option>\n";
 			if (is_dir($template_dir)) {
 					$templates = scandir($template_dir);
 					foreach ($templates as $dir) {
@@ -276,14 +283,9 @@
 								if (is_dir($dh_sub)) {
 									$templates_sub = scandir($dh_sub);
 									foreach ($templates_sub as $dir_sub) {
-										if ($file_sub != '.' && $dir_sub != '..' && $dir_sub[0] != '.') {
+										if ($dir_sub != '..' && $dir_sub[0] != '.') {
 											if (is_dir($template_dir . '/' . $dir .'/'. $dir_sub)) {
-												if ($device_template == $dir."/".$dir_sub) {
-													echo "<option value='".$dir."/".$dir_sub."' selected='selected'>".$dir."/".$dir_sub."</option>\n";
-												}
-												else {
-													echo "<option value='".$dir."/".$dir_sub."'>".$dir."/".$dir_sub."</option>\n";
-												}
+												echo "<option value='".$dir."/".$dir_sub."'>".$dir."/".$dir_sub."</option>\n";
 											}
 										}
 									}
@@ -293,42 +295,41 @@
 						}
 					}
 				}
-			echo "</select>\n";
-			echo "    <br />\n";
-			echo $text["description-".$option_selected.""]."\n";
-			echo "</td>\n";
+			echo "		</select>\n";
 		}
 
-		//options with a free form input
+		//line 1 text input
 		if ($option_selected == 'line_1_server_address' || $option_selected == 'line_1_server_address_primary' || $option_selected == 'line_1_server_address_secondary' || $option_selected == 'line_1_outbound_proxy_primary' || $option_selected == 'line_1_outbound_proxy_secondary' || $option_selected == 'line_1_sip_port' || $option_selected == 'line_1_register_expires') {
-			echo "<td class='vtable' align='left'>\n";
-			echo "    <input class='formfld' type='text' name='new_setting' maxlength='255' value=\"".escape($new_setting ?? '')."\">\n";
-			echo "<br />\n";
-			echo ($text["description-".escape($option_selected)] ?? '')."\n";
-			echo "</td>\n";
+			echo "		<input class='formfld' type='text' name='new_setting' maxlength='255' value=\"".escape($new_setting ?? '')."\">\n";
 		}
 
-		//option is transport
+		//transport
 		if ($option_selected == 'line_1_sip_transport') {
-			echo "<td class='vtable' align='left'>\n";
-			echo "    <select class='formfld' name='new_setting'>\n";
-			echo "    <option value='tcp'>TCP</option>\n";
-			echo "    <option value='udp'>UDP</option>\n";
-			echo "    <option value='tls'>TLS</option>\n";
-			echo "    <option value='dns srv'>DNS SRV</option>\n";
-			echo "    </select>\n";
-			echo "    <br />\n";
-			echo ($text["description-".escape($option_selected)] ?? '')."\n";
-			echo "</td>\n";
+			echo "		<select class='formfld' name='new_setting'>\n";
+			echo "			<option value='tcp'>TCP</option>\n";
+			echo "			<option value='udp'>UDP</option>\n";
+			echo "			<option value='tls'>TLS</option>\n";
+			echo "			<option value='dns srv'>DNS SRV</option>\n";
+			echo "		</select>\n";
 		}
 
-		echo "<td align='left'>\n";
-		echo "<input type='button' class='btn' alt='".$text['button-submit']."' onclick=\"if (confirm('".$text['confirm-update']."')) { document.forms.devices.submit(); }\" value='".$text['button-submit']."'>\n";
-		echo "</td>\n";
-		echo "</tr>\n";
-		echo "</table>\n";
-		echo "<br />\n";
+		echo "		</div>\n";
+		echo "	</div>\n";
+
+		echo "</div>\n";
+
+		echo "<div style='display: flex; justify-content: flex-end; padding-top: 15px; margin-left: 20px; white-space: nowrap;'>\n";
+		echo button::create(['label'=>$text['button-reset'],'icon'=>$settings->get('theme', 'button_icon_reset'),'type'=>'button','link'=>'bulk_account_settings_devices.php']);
+		echo button::create(['label'=>$text['button-update'],'icon'=>$settings->get('theme', 'button_icon_save'),'type'=>'submit','id'=>'btn_update','click'=>"if (confirm('".$text['confirm-update']."')) { document.forms.devices.submit(); }"]);
+		echo "</div>\n";
+
 	}
+	else {
+		echo "</div>\n";
+	}
+
+	echo "</div>\n";
+	echo "<br />\n";
 
 	echo "<div class='card'>\n";
 	echo "<table class='list'>\n";

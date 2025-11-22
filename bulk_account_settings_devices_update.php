@@ -104,21 +104,17 @@
 						}
 					}
 
-					$array["device_lines"][$i]["device_line_uuid"] = $device_line_uuid;
-					$array["device_lines"][$i][$option_line] = $new_setting;
-					$array["device_lines"][$i]["domain_uuid"] = $domain_uuid;
-					$array["device_lines"][$i]["device_uuid"] = $device_uuid;
-					$database->app_name = 'bulk_account_settings';
-					$database->app_uuid = '6b4e03c9-c302-4eaa-b16d-e1c5c08a2eb7';
+					$array["device_lines"][0]["device_line_uuid"] = $device_line_uuid;
+					$array["device_lines"][0][$option_line] = $new_setting;
+					$array["device_lines"][0]["domain_uuid"] = $domain_uuid;
+					$array["device_lines"][0]["device_uuid"] = $device_uuid;
 					$database->save($array);
 				}
 				//other device settings
 				else {
-					$array["devices"][$i]["domain_uuid"] = $domain_uuid;
-					$array["devices"][$i]["device_uuid"] = $device_uuid;
-					$array["devices"][$i][$option_selected] = $new_setting;
-					$database->app_name = 'bulk_account_settings';
-					$database->app_uuid = '6b4e03c9-c302-4eaa-b16d-e1c5c08a2eb7';
+					$array["devices"][0]["domain_uuid"] = $domain_uuid;
+					$array["devices"][0]["device_uuid"] = $device_uuid;
+					$array["devices"][0][$option_selected] = $new_setting;
 					$database->save($array);
 				}
 			}
