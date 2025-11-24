@@ -17,7 +17,7 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2023
+	Portions created by the Initial Developer are Copyright (C) 2008-2025
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
@@ -29,10 +29,7 @@
 	require_once "resources/check_auth.php";
 
 //check permissions
-	if (permission_exists('bulk_account_settings_users')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('bulk_account_settings_users')) {
 		echo "access denied";
 		exit;
 	}
@@ -77,8 +74,6 @@
 		if (!empty($result)) {
 			$_SESSION['user_level'] = intval($result);
 		}
-	} else {
-		$_SESSION['user_level'] = 0;
 	}
 
 //check for the ids
@@ -97,8 +92,7 @@
 			echo "</html>\n";
 			exit();
 		}
-		$new_setting = $_REQUEST["new_setting"];
-		foreach($user_uuids as $i => $user_uuid) {
+		foreach ($user_uuids as $i => $user_uuid) {
 			//ensure valid uuid
 			if (!is_uuid($user_uuid)) {
 				continue;
@@ -108,7 +102,7 @@
 				case 'user_enabled':
 					$array["users"][$i]["domain_uuid"] = $domain_uuid;
 					$array["users"][$i]["user_uuid"] = $user_uuid;
-					$array["users"][$i][$option_selected] = $new_setting;
+					$array["users"][$i][$option_selected] = $_REQUEST["new_setting"];
 					break;
 				case 'password':
 					$array["users"][$i]["domain_uuid"] = $domain_uuid;
@@ -145,10 +139,10 @@
 					$array['user_settings'][$i]['user_setting_category'   ] = 'domain';
 					$array['user_settings'][$i]['user_setting_name'       ] = 'name';
 					$array['user_settings'][$i]['user_setting_subcategory'] = 'time_zone';
-					$array['user_settings'][$i]['user_setting_value'      ] = $new_setting;
+					$array['user_settings'][$i]['user_setting_value'      ] = $_REQUEST["new_setting"];
 					break;
 				case 'group':
-					$group_uuid = preg_replace('#[^a-fA-F0-9\-]#', '', $_REQUEST['group_uuid']);
+					$group_uuid = $_REQUEST['group_uuid'];
 					if (is_uuid($group_uuid) && !empty($groups[$group_uuid])) {
 						//check current user is not trying to assign to a higher level group
 						if ($_SESSION['user_level'] >= $group_levels[$group_uuid]) {
@@ -162,16 +156,12 @@
 			}
 		}
 		if (!empty($array) && ($action == 'update' || $action == 'add')) {
-			$database->app_name = 'bulk_account_settings';
-			$database->app_uuid = '6b4e03c9-c302-4eaa-b16d-e1c5c08a2eb7';
 			$database->save($array);
-			//$message = $database->message;
+			$message = $database->message;
 		}
 		if (!empty($array) && $action == 'remove') {
-			$database->app_name = 'bulk_account_settings';
-			$database->app_uuid = '6b4e03c9-c302-4eaa-b16d-e1c5c08a2eb7';
 			$database->delete($array);
-			//$message = $database->message;
+			$message = $database->message;
 		}
 	}
 
