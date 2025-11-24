@@ -171,7 +171,7 @@
 	}
 
 //additional includes
-	$document['title'] = $text['title-devices_settings'];
+	$document['title'] = $text['title-device_settings'];
 	require_once "resources/header.php";
 
 //show the content
@@ -183,7 +183,7 @@
 
 	echo "	<div class='actions'>\n";
 	echo "		<form method='get' action=''>\n";
-	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$_SESSION['theme']['button_icon_back'],'id'=>'btn_back','style'=>'margin-right: 15px; position: sticky; z-index: 5;','onclick'=>"window.location='bulk_account_settings.php'"]);
+	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$settings->get('theme', 'button_icon_back'),'id'=>'btn_back','style'=>'margin-right: 15px; position: sticky; z-index: 5;','onclick'=>"window.location='bulk_account_settings.php'"]);
 	echo 			"<input type='text' class='txt list-search' name='search' id='search' style='margin-left: 0 !important;' value=\"".escape($search)."\" placeholder=\"".$text['label-search']."\" onkeydown=''>";
 	echo "			<input type='hidden' class='txt' style='width: 150px' name='option_selected' id='option_selected' value='".escape($option_selected)."'>";
 	echo "			<form id='form_search' class='inline' method='get'>\n";
@@ -206,16 +206,11 @@
 	echo "			".$text['label-setting']."\n";
 	echo "		</div>\n";
 	echo "		<div class='field'>\n";
-	echo "			<form name='frm' method='get' id=option_selected>\n";
-	echo "			<select class='formfld' name='option_selected'  onchange=\"this.form.submit();\">\n";
+	echo "			<form name='frm' method='get' id='option_selected'>\n";
+	echo "			<select class='formfld' name='option_selected' onchange=\"this.form.submit();\">\n";
 	echo "				<option value=''></option>\n";
 	foreach ($device_options as $option) {
-		if ($option_selected === $option) {
-			$selected = ' selected="selected"';
-		} else {
-			$selected = '';
-		}
-		echo "			<option value='$option'$selected>".$text['label-'.$option]."</option>\n";
+		echo "			<option value='".$option."' ".($option_selected === $option ? "selected='selected'" : null).">".$text['label-'.$option]."</option>\n";
 	}
 	echo "  		</select>\n";
 	echo "			</form>\n";
@@ -299,7 +294,15 @@
 		}
 
 		//line 1 text input
-		if ($option_selected == 'line_1_server_address' || $option_selected == 'line_1_server_address_primary' || $option_selected == 'line_1_server_address_secondary' || $option_selected == 'line_1_outbound_proxy_primary' || $option_selected == 'line_1_outbound_proxy_secondary' || $option_selected == 'line_1_sip_port' || $option_selected == 'line_1_register_expires') {
+		if (
+			$option_selected == 'line_1_server_address' ||
+			$option_selected == 'line_1_server_address_primary' ||
+			$option_selected == 'line_1_server_address_secondary' ||
+			$option_selected == 'line_1_outbound_proxy_primary' ||
+			$option_selected == 'line_1_outbound_proxy_secondary' ||
+			$option_selected == 'line_1_sip_port' ||
+			$option_selected == 'line_1_register_expires'
+			) {
 			echo "		<input class='formfld' type='text' name='new_setting' maxlength='255' value=\"".escape($new_setting ?? '')."\">\n";
 		}
 
@@ -320,7 +323,7 @@
 
 		echo "<div style='display: flex; justify-content: flex-end; padding-top: 15px; margin-left: 20px; white-space: nowrap;'>\n";
 		echo button::create(['label'=>$text['button-reset'],'icon'=>$settings->get('theme', 'button_icon_reset'),'type'=>'button','link'=>'bulk_account_settings_devices.php']);
-		echo button::create(['label'=>$text['button-update'],'icon'=>$settings->get('theme', 'button_icon_save'),'type'=>'submit','id'=>'btn_update','click'=>"if (confirm('".$text['confirm-update']."')) { document.forms.devices.submit(); }"]);
+		echo button::create(['label'=>$text['button-update'],'icon'=>$settings->get('theme', 'button_icon_save'),'type'=>'submit','id'=>'btn_update','click'=>"if (confirm('".$text['confirm-update_devices']."')) { document.forms.devices.submit(); }"]);
 		echo "</div>\n";
 
 	}
@@ -340,8 +343,8 @@
 	echo th_order_by('device_address', $text['label-device_address'], $order_by, $order, null, null, $param);
 	echo th_order_by('device_label', $text['label-device_label'], $order_by, $order, null, null, $param);
 	if (preg_match('/line_(.)/',($option_selected ?? ''))) {
-			echo th_order_by($option_selected, $text["label-".$option_selected.""], $order_by, $order, null, null, $param);
-		}
+		echo th_order_by($option_selected, $text["label-".$option_selected.""], $order_by, $order, null, null, $param);
+	}
 	echo th_order_by('device_vendor', $text['label-device_vendor'], $order_by, $order, null, null, $param);
 	echo th_order_by('device_template', $text['label-device_template'], $order_by, $order, null, null, $param);
 	echo th_order_by('device_label', $text['label-device_profile'], $order_by, $order, null, null, $param);
@@ -358,7 +361,7 @@
 			echo "		<input type='checkbox' name='id[]' id='checkbox_".escape($row['device_uuid'])."' value='".escape($row['device_uuid'])."' onclick=\"if (!this.checked) { document.getElementById('chk_all').checked = false; }\">";
 			echo "	</td>";
 			$device_ids[] = 'checkbox_'.$row['device_uuid'];
-			echo "	<td class='no-wrap'><a href='".$list_row_url."'>".escape(format_device_address($row['device_address']))."</a>";
+			echo "	<td class='no-wrap'><a href='".$list_row_url."'>".escape(format_device_address($row['device_address']))."</a></td>";
 			echo "	<td>".escape($row['device_label'])."&nbsp;</td>\n";
 			if (preg_match ('/line_/',($option_selected ?? ''))) {
 				echo "	<td> ".$row[$option_selected]."&nbsp;</td>\n";
