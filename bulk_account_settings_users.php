@@ -65,11 +65,10 @@
 	$search = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["search"] ?? '');
 	if (strlen($search) > 0) {
 		$sql_mod = 'and ( ';
-		$sql_mod .= 'username ILIKE :search ';
-		$sql_mod .= 'or user_enabled ILIKE :search ';
-		$sql_mod .= 'or user_status ILIKE :search ';
+		$sql_mod .= 'lower(username) like :search ';
+		$sql_mod .= 'or lower(user_status) like :search ';
 		$sql_mod .= ') ';
-		$parameters['search'] = '%'.$search.'%';
+		$parameters['search'] = '%'.strtolower($search).'%';
 	}
 	if (strlen($order_by) < 1) {
 		$order_by = "username";
