@@ -17,7 +17,7 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2023
+	Portions created by the Initial Developer are Copyright (C) 2008-2025
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
@@ -29,10 +29,7 @@
 	require_once "resources/check_auth.php";
 
 //check permissions
-	if (permission_exists('bulk_account_settings_extensions')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('bulk_account_settings_extensions')) {
 		echo "access denied";
 		exit;
 	}
@@ -121,8 +118,6 @@
 		}
 		if (!empty($array)) {
 			//save modifications
-			$database->app_name = 'bulk_account_settings';
-			$database->app_uuid = '6b4e03c9-c302-4eaa-b16d-e1c5c08a2eb7';
 			$database->save($array);
 			$message = $database->message;
 		}

@@ -30,10 +30,7 @@
 	require_once "resources/paging.php";
 
 //check permissions
-	if (permission_exists('bulk_account_settings_extensions')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('bulk_account_settings_extensions')) {
 		die("access denied");
 	}
 
@@ -95,13 +92,15 @@
 		$sql_mod .= "or lower(accountcode) like :search ";
 		$sql_mod .= "or lower(call_group) like :search ";
 		$sql_mod .= "or lower(description) like :search ";
-		switch ($option_selected) {
-			case 'call_timeout':
-			case 'sip_force_expires':
-				$sql_mod .= "or lower(cast (".$option_selected." as text)) like :search ";
-				break;
-			default:
-				$sql_mod .= "or lower(".$option_selected.") like :search ";
+		if (!empty($option_selected)) {
+			switch ($option_selected) {
+				case 'call_timeout':
+				case 'sip_force_expires':
+					$sql_mod .= "or lower(cast (".$option_selected." as text)) like :search ";
+					break;
+				default:
+					$sql_mod .= "or lower(".$option_selected.") like :search ";
+			}
 		}
 		$sql_mod .= ") ";
 		$parameters['search'] = '%'.strtolower($search).'%';
@@ -128,22 +127,13 @@
 
 //prepare to page the results
 	$rows_per_page = intval($settings->get('domain', 'paging', 50));
+	$param = (!empty($search) ? "&search=".$search : '').(!empty($option_selected) ? "&option_selected=".$option_selected : '');
 	$page = intval(preg_replace('#[^0-9]#', '', $_GET['page'] ?? 0));
+	list($paging_controls, $rows_per_page) = paging($total_extensions, $param, $rows_per_page);
+	list($paging_controls_mini, $rows_per_page) = paging($total_extensions, $param, $rows_per_page, true);
 	$offset = $rows_per_page * $page;
-	if ($rows_per_page > 0) {
-		$url_params = '';
-		if (!empty($search)) {
-			$url_params .= (empty($url_params) ? '' : '&') . "search=".$search;
-		}
-		if (!empty($option_selected)) {
-			$url_params .= (empty($url_params) ? '' : '&') ."option_selected=".$option_selected;
-		}
-		list($paging_controls_mini, $rows_per_page, $var_3) = paging($total_extensions, $url_params, $rows_per_page, true); //top
-		list($paging_controls, $rows_per_page, $var_3) = paging($total_extensions, $url_params, $rows_per_page); //bottom
-	}
 
 //get all the extensions from the database
-	$parameters = [];
 	$sql = "SELECT ";
 	$sql .= "description, ";
 	$sql .= "extension, ";
@@ -158,57 +148,37 @@
 	//add search mod from above
 	if (!empty($sql_mod)) {
 		$sql .= $sql_mod;
-		$parameters['search'] = '%'.strtolower($search).'%';
 	}
 	if ($rows_per_page > 0) {
 		$sql .= "ORDER BY $order_by $order ";
 		$sql .= "limit $rows_per_page offset $offset ";
 	}
 	$parameters['domain_uuid'] = $domain_uuid;
-	$directory = $database->select($sql, $parameters, 'all');
-	if ($directory === false) {
-		$directory = [];
+	$extensions = $database->select($sql, $parameters, 'all');
+	if ($extensions === false) {
+		$extensions = [];
 	}
 
 //additional includes
+	$document['title'] = $text['title-extension_settings'];
 	require_once "resources/header.php";
-	$document['title'] = $text['title-extensions_settings'];
 
-//set the alternating styles
-	$c = 0;
-	$row_style["0"] = "row_style0";
-	$row_style["1"] = "row_style1";
+
 
 //show the content
 	echo "<div class='action_bar' id='action_bar'>\n";
 	echo "	<div class='heading'>\n";
 	echo "		<b>".$text['header-extensions']."</b><div class='count'>".number_format($total_extensions)."</div><br><br>\n";
-
-//options list
-	echo "		<form name='frm' method='get' id=option_selected>\n";
-	echo "			<select class='formfld' name='option_selected'  onchange=\"this.form.submit();\">\n";
-	echo "				<option value=''>".$text['label-extension_null']."</option>\n";
-	foreach ($extension_options as $option) {
-		if ($option_selected === $option) {
-			$selected = " selected='selected'";
-		} else {
-			$selected = "";
-		}
-		echo "			<option value='$option'$selected>".$text['label-'.$option]."</option>\n";
-	}
-	echo "			</select>\n";
-	echo "		</form>\n";
-	echo "		<br />\n";
-	echo "		".$text['description-extension_settings_description']."\n";
+	echo "		".$text['description-extension_settings']."\n";
 	echo "	</div>\n";
 
 	echo "	<div class='actions'>\n";
 	echo "		<form method='get' action=''>\n";
-	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$_SESSION['theme']['button_icon_back'],'id'=>'btn_back','style'=>'margin-right: 15px; position: sticky; z-index: 5;','onclick'=>"window.location='bulk_account_settings.php'"]);
-	echo "			<input type='text' class='txt' style='width: 150px' name='search' id='search' value='".escape($search)."' placeholder=\"".$text['label-search']."\" onkeydown=''>";
+	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$settings->get('theme', 'button_icon_back'),'id'=>'btn_back','style'=>'margin-right: 15px; position: sticky; z-index: 5;','onclick'=>"window.location='bulk_account_settings.php'"]);
+	echo 			"<input type='text' class='txt list-search' name='search' id='search' style='margin-left: 0 !important;' value=\"".escape($search)."\" placeholder=\"".$text['label-search']."\" onkeydown=''>";
 	echo "			<input type='hidden' class='txt' style='width: 150px' name='option_selected' id='option_selected' value='".escape($option_selected)."'>";
 	echo "			<form id='form_search' class='inline' method='get'>\n";
-	echo button::create(['label'=>$text['button-search'],'icon'=>$_SESSION['theme']['button_icon_search'],'type'=>'submit','id'=>'btn_search']);
+	echo button::create(['label'=>$text['button-search'],'icon'=>$settings->get('theme', 'button_icon_search'),'type'=>'submit','id'=>'btn_search']);
 	if (!empty($paging_controls_mini)) {
 		echo "			<span style='margin-left: 15px;'>".$paging_controls_mini."</span>\n";
 	}
@@ -218,144 +188,163 @@
 	echo "	<div style='clear: both;'></div>\n";
 	echo "</div>\n";
 
-	if (strlen($option_selected) > 0) {
-		echo "<form name='extensions' method='post' action='bulk_account_settings_extensions_update.php'>\n";
-		echo "<input class='formfld' type='hidden' name='option_selected' maxlength='255' value=\"".escape($option_selected)."\">\n";
-		echo "<table width='auto' border='0' cellpadding='0' cellspacing='0'>\n";
-		echo "<tr>\n";
-		//options with a free form input
-		if ($option_selected == 'accountcode'
-				|| $option_selected == 'call_group'
-				|| $option_selected == 'call_timeout'
-				|| $option_selected == 'emergency_caller_id_name'
-				|| $option_selected == 'emergency_caller_id_number'
-				|| $option_selected == 'limit_max'
-				|| $option_selected == 'outbound_caller_id_name'
-				|| $option_selected == 'outbound_caller_id_number'
-				|| $option_selected == 'toll_allow'
-				|| $option_selected == 'sip_force_expires'
-				|| $option_selected == 'mwi_account') {
-			echo "<td class='vtable' align='left'>\n";
-			echo "    <input class='formfld' type='text' name='new_setting' maxlength='255' value=\"$new_setting\">\n";
-			echo "<br />\n";
-			echo $text["description-".escape($option_selected).""]."\n";
-			echo "</td>\n";
+//options list
+	echo "<div class='card'>\n";
+	echo "<div class='form_grid'>\n";
+
+	echo "	<div class='form_set'>\n";
+	echo "		<div class='label'>\n";
+	echo "			".$text['label-setting']."\n";
+	echo "		</div>\n";
+	echo "		<div class='field'>\n";
+	echo "			<form name='frm' method='get' id='option_selected'>\n";
+	echo "			<select class='formfld' name='option_selected' onchange=\"this.form.submit();\">\n";
+	echo "				<option value=''></option>\n";
+	foreach ($extension_options as $option) {
+		echo "			<option value='".$option."' ".($option_selected === $option ? "selected='selected'" : null).">".$text['label-'.$option]."</option>\n";
+	}
+	echo "  		</select>\n";
+	echo "			</form>\n";
+	echo "		</div>\n";
+	echo "	</div>\n";
+
+	if (!empty($option_selected)) {
+
+		echo "	<div class='form_set'>\n";
+		echo "		<div class='label'>\n";
+		echo "			".$text['label-value']."";
+		echo "		</div>\n";
+		echo "		<div class='field'>\n";
+
+		echo "			<form name='extensions' method='post' action='bulk_account_settings_extensions_update.php'>\n";
+		echo "			<input class='formfld' type='hidden' name='option_selected' maxlength='255' value=\"".escape($option_selected)."\">\n";
+
+		//text input
+		if (
+			$option_selected == 'accountcode' ||
+			$option_selected == 'call_group' ||
+			$option_selected == 'call_timeout' ||
+			$option_selected == 'emergency_caller_id_name' ||
+			$option_selected == 'emergency_caller_id_number' ||
+			$option_selected == 'limit_max' ||
+			$option_selected == 'outbound_caller_id_name' ||
+			$option_selected == 'outbound_caller_id_number' ||
+			$option_selected == 'toll_allow' ||
+			$option_selected == 'sip_force_expires' ||
+			$option_selected == 'mwi_account'
+			) {
+			echo "		<input class='formfld' type='text' name='new_setting' maxlength='255' value=''>\n";
 		}
-		//options with True/False
+
+		//enabled, directory visible
 		if ($option_selected === 'enabled' || $option_selected === 'directory_visible') {
-			echo "<td class='vtable' align='left'>\n";
-			echo "    <select class='formfld' name='new_setting'>\n";
-			echo "    <option value='true'>".$text['label-true']."</option>\n";
-			echo "    <option value='false'>".$text['label-false']."</option>\n";
-			echo "    </select>\n";
-			echo "    <br />\n";
-			echo $text["description-".$option_selected.""]."\n";
-			echo "</td>\n";
+			echo "		<select class='formfld' name='new_setting'>\n";
+			echo "			<option value='true'>".$text['label-true']."</option>\n";
+			echo "			<option value='false'>".$text['label-false']."</option>\n";
+			echo "		</select>\n";
 		}
-		//option is User Record
+
+		//user record
         if ($option_selected == 'user_record') {
-			echo "<td class='vtable' align='left'>\n";
-			echo "    <select class='formfld' name='new_setting'>\n";
-			echo "		<option value=''>".$text['label-user_record_none']."</option>\n";
-			echo "		<option value='all'>".$text['label-all']."</option>\n";
-			echo "		<option value=inbound'>".$text['label-inbound']."</option>\n";
-			echo "		<option value=outbound'>".$text['label-outbound']."</option>\n";
-			echo "		<option value=local'>".$text['label-local']."</option>\n";
-			echo "		<option value=disabled'>".$text['label-disabled']."</option>\n";
-			echo "    </select>\n";
-			echo "    <br />\n";
-			echo $text["description-".$option_selected.""]."\n";
-			echo "</td>\n";
+			echo "		<select class='formfld' name='new_setting'>\n";
+			echo "			<option value=''>".$text['label-user_record_none']."</option>\n";
+			echo "			<option value='all'>".$text['label-all']."</option>\n";
+			echo "			<option value='local'>".$text['label-local']."</option>\n";
+			echo "			<option value='inbound'>".$text['label-inbound']."</option>\n";
+			echo "			<option value='outbound'>".$text['label-outbound']."</option>\n";
+			echo "			<option value='disabled'>".$text['label-disabled']."</option>\n";
+			echo "		</select>\n";
         }
-		//option is SIP Force Contact
+
+		//sip force contact
 		if ($option_selected == 'sip_force_contact') {
-			echo "<td class='vtable' align='left'>\n";
-			echo "    <select class='formfld' name='new_setting'>\n";
-			echo "      <option value=''></option>\n";
-			echo "      <option value='NDLB-connectile-dysfunction'>".$text['label-rewrite_contact_ip_and_port']."</option>\n";
-			echo "      <option value='NDLB-connectile-dysfunction-2.0'>".$text['label-rewrite_contact_ip_and_port_2']."</option>\n";
-			echo "      <option value='NDLB-tls-connectile-dysfunction'>".$text['label-rewrite_tls_contact_port']."</option>\n";
-			echo "    </select>\n";
-			echo "    <br />\n";
-			echo $text["description-".$option_selected.""]."\n";
-			echo "</td>\n";
+			echo "		<select class='formfld' name='new_setting'>\n";
+			echo "			<option value=''></option>\n";
+			echo "			<option value='NDLB-connectile-dysfunction'>".$text['label-rewrite_contact_ip_and_port']."</option>\n";
+			echo "			<option value='NDLB-connectile-dysfunction-2.0'>".$text['label-rewrite_contact_ip_and_port_2']."</option>\n";
+			echo "			<option value='NDLB-tls-connectile-dysfunction'>".$text['label-rewrite_tls_contact_port']."</option>\n";
+			echo "		</select>\n";
 		}
-		//option is SIP Bypass Media
+
+		//sip bypass media
 		if ($option_selected == 'sip_bypass_media') {
-			echo "<td class='vtable' align='left'>\n";
-			echo "    <select class='formfld' name='new_setting'>\n";
-			echo "    <option value=''></option>\n";
-			echo "    <option value='bypass-media'>".$text['option-bypass_media']."</option>\n";
-			echo "    <option value='bypass-media-after-bridge'>".$text['option-bypass_media_after_bridge']."</option>\n";
-			echo "    <option value='proxy-media'>".$text['option-proxy_media']."</option>\n";
-			echo "    </select>\n";
-			echo "    <br />\n";
-			echo $text["description-".$option_selected.""]."\n";
-			echo "</td>\n";
+			echo "		<select class='formfld' name='new_setting'>\n";
+			echo "			<option value=''></option>\n";
+			echo "			<option value='bypass-media'>".$text['option-bypass_media']."</option>\n";
+			echo "			<option value='bypass-media-after-bridge'>".$text['option-bypass_media_after_bridge']."</option>\n";
+			echo "			<option value='proxy-media'>".$text['option-proxy_media']."</option>\n";
+			echo "		</select>\n";
 		}
-		//option is hold_music
+
+		//hold music
 		if ($option_selected == 'hold_music') {
-			echo "<td class='vtable' align='left'>\n";
 			if (is_dir($_SERVER["DOCUMENT_ROOT"].PROJECT_PATH.'/app/music_on_hold')) {
 				require_once "app/music_on_hold/resources/classes/switch_music_on_hold.php";
 				$options = '';
 				$moh = new switch_music_on_hold;
-				echo $moh->select('new_setting', $hold_music, $options);
+				echo $moh->select('new_setting', ($hold_music ?? ''), $options);
 			}
-			$new_setting = $hold_music;
-			echo "    <br />\n";
-			echo $text["description-".escape($option_selected).""]."\n";
-			echo "</td>\n";
 		}
-		echo "<td align='left'>\n";
-		echo "<input type='button' class='btn' alt='".$text['button-submit']."' onclick=\"if (confirm('".$text['confirm-update']."')) { document.forms.extensions.submit(); }\" value='".$text['button-submit']."'>\n";
-		echo "</td>\n";
-		echo "</tr>\n";
-		echo "</table>";
-		echo "<br />";
+
+		echo "		</div>\n";
+		echo "	</div>\n";
+
+		echo "</div>\n";
+
+		echo "<div style='display: flex; justify-content: flex-end; padding-top: 15px; margin-left: 20px; white-space: nowrap;'>\n";
+		echo button::create(['label'=>$text['button-reset'],'icon'=>$settings->get('theme', 'button_icon_reset'),'type'=>'button','link'=>'bulk_account_settings_extensions.php']);
+		echo button::create(['label'=>$text['button-update'],'icon'=>$settings->get('theme', 'button_icon_save'),'type'=>'submit','id'=>'btn_update','click'=>"if (confirm('".$text['confirm-update_extensions']."')) { document.forms.extensions.submit(); }"]);
+		echo "</div>\n";
+
 	}
+	else {
+		echo "</div>\n";
+	}
+
+	echo "</div>\n";
+	echo "<br />\n";
 
 	echo "<div class='card'>\n";
-	echo "<table class='tr_hover' width='100%' border='0' cellpadding='0' cellspacing='0'>\n";
-	echo "<tr>\n";
-	if (!empty($directory)) {
+	echo "<table class='list'>\n";
+	echo "<tr class='list-header'>\n";
+	if (!empty($extensions)) {
 		echo "<th style='width: 30px; text-align: center; padding: 0px;'><input type='checkbox' id='chk_all' onchange=\"(this.checked) ? check('all') : check('none');\"></th>";
 	}
-	echo th_order_by('extension', $text['label-extension'], $order_by,$order,'','',"option_selected=".$option_selected."&search=".$search."");
-	if (($option_selected == "") or ($option_selected == 'call_group') or ($option_selected == 'accountcode')) {
-		} else {
-			echo th_order_by($option_selected, $text["label-".$option_selected.""], $order_by,$order,'','',"option_selected=".$option_selected."&search=".$search."");
-		}
-	echo th_order_by('accountcode', $text['label-accountcode'], $order_by, $order,'','',"option_selected=".$option_selected."&search=".$search."");
-	echo th_order_by('call_group', $text['label-call_group'], $order_by, $order,'','',"option_selected=".$option_selected."&search=".$search."");
-	echo th_order_by('description', $text['label-description'], $order_by, $order,'','',"option_selected=".$option_selected."&search=".$search."");
+	echo th_order_by('extension', $text['label-extension'], $order_by, $order, null, null, $param);
+	if (!empty($option_selected) && $option_selected != 'call_group' && $option_selected != 'accountcode') {
+		echo th_order_by($option_selected, $text["label-".$option_selected.""], $order_by, $order, null, null, $param);
+	}
+	echo th_order_by('accountcode', $text['label-accountcode'], $order_by, $order, null, null, $param);
+	echo th_order_by('call_group', $text['label-call_group'], $order_by, $order, null, null, $param);
+	echo th_order_by('description', $text['label-description'], $order_by, $order, null, null, $param);
 	echo "</tr>\n";
 
-
 	$ext_ids = [];
-	if (!empty($directory)) {
-
-		foreach($directory as $key => $row) {
-			$tr_link = (permission_exists('extension_edit')) ? " href='/app/extensions/extension_edit.php?id=".$row['extension_uuid']."'" : null;
-			echo "<tr ".$tr_link.">\n";
-
-			echo "	<td valign='top' class='".$row_style[$c]." tr_link_void' style='text-align: center; vertical-align: middle; padding: 0px;'>";
+	if (!empty($extensions)) {
+		foreach($extensions as $key => $row) {
+			$list_row_url = permission_exists('extension_edit') ? "/app/extensions/extension_edit.php?id=".urlencode($row['extension_uuid']) : null;
+			echo "<tr class='list-row' href='".$list_row_url."'>\n";
+			echo "	<td class='checkbox'>";
 			echo "		<input type='checkbox' name='id[]' id='checkbox_".escape($row['extension_uuid'])."' value='".escape($row['extension_uuid'])."' onclick=\"if (!this.checked) { document.getElementById('chk_all').checked = false; }\">";
 			echo "	</td>";
 			$ext_ids[] = 'checkbox_'.$row['extension_uuid'];
-
-			echo "	<td valign='top' class='".$row_style[$c]."'> ".$row['extension']."&nbsp;</td>\n";
-			if (($option_selected == "") or ($option_selected == 'call_group') or ($option_selected == 'accountcode')) {
-			} else {
-				echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row[$option_selected])."&nbsp;</td>\n";
+			echo "	<td><a href='".$list_row_url."'>".$row['extension']."</a></td>\n";
+			if (!empty($option_selected) && $option_selected != 'call_group' && $option_selected != 'accountcode') {
+				if ($option_selected == 'enabled' || $option_selected == 'directory_visible') {
+					echo "	<td>".escape($text['label-'.(!empty($row[$option_selected]) ? 'true' : 'false')])."&nbsp;</td>\n";
+				}
+				else if ($option_selected == 'user_record') {
+					echo "	<td>".escape(ucwords($row[$option_selected] ?? ''))."&nbsp;</td>\n";
+				}
+				else {
+					echo "	<td>".escape($row[$option_selected])."&nbsp;</td>\n";
+				}
 			}
-			echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row['accountcode'])."&nbsp;</td>\n";
-			echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row['call_group'])."&nbsp;</td>\n";
-			echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row['description'])."</td>\n";
+			echo "	<td>".escape($row['accountcode'])."&nbsp;</td>\n";
+			echo "	<td>".escape($row['call_group'])."&nbsp;</td>\n";
+			echo "	<td>".escape($row['description'])."&nbsp;</td>\n";
 			echo "</tr>\n";
-			$c = ($c) ? 0 : 1;
 		}
-
 	}
 
 	echo "</table>\n";
@@ -366,7 +355,7 @@
 		echo "<br />\n";
 		echo $paging_controls."\n";
 	}
-	echo "<br /><br />".((!empty($directory)) ? "<br /><br />" : null);
+	echo "<br /><br />".((!empty($extensions)) ? "<br /><br />" : null);
 
 	// check or uncheck all checkboxes
 	if (!empty($ext_ids)) {
@@ -380,7 +369,7 @@
 		echo "</script>\n";
 	}
 
-	if (!empty($directory)) {
+	if (!empty($extensions)) {
 		// check all checkboxes
 		key_press('ctrl+a', 'down', 'document', null, null, "check('all');", true);
 
