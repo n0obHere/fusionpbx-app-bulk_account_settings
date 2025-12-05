@@ -311,7 +311,7 @@
 
 		//user status
 		if ($option_selected == 'user_status') {
-			echo "		<select name='new_setting' class='formfld'>\n";
+			echo "		<select class='formfld' name='new_setting'>\n";
 			echo "			<option value=''></option>\n";
 			echo "			<option value='Available'>".$text['option-available']."</option>\n";
 			echo "			<option value='Available (On Demand)'>".$text['option-available_on_demand']."</option>\n";
@@ -323,7 +323,7 @@
 
 		//user time zone
 		if ($option_selected == 'time_zone') {
-			echo "		<select name='new_setting' class='formfld'>\n";
+			echo "		<select class='formfld' name='new_setting'>\n";
 			echo "			<option value=''></option>\n";
 			//$list = DateTimeZone::listAbbreviations();
 			$time_zone_identifiers = DateTimeZone::listIdentifiers();
@@ -357,7 +357,7 @@
 			$result_count = count($result);
 			if ($result_count > 0) {
 				if (isset($assigned_groups)) { echo "<br />\n"; }
-				echo "	<select name='group_uuid' class='formfld' style='width: auto; margin-right: 3px;'>\n";
+				echo "	<select class='formfld' name='group_uuid' style='width: auto; margin-right: 3px;'>\n";
 				echo "		<option value=''></option>\n";
 				foreach ($result as $field) {
 					if ($field['group_name'] == "superadmin" && !if_group("superadmin")) { continue; }	//only show the superadmin group to other superadmins
