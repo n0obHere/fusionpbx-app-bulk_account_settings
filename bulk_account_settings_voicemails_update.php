@@ -25,14 +25,11 @@
 */
 
 //includes files
-	require_once dirname(__DIR__, 2) . '/resources/require.php';
-	require_once dirname(__DIR__, 2) . '/resources/check_auth.php';
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
+	require_once "resources/check_auth.php";
 
 //check permissions
-	if (permission_exists('bulk_account_settings_voicemails')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('bulk_account_settings_voicemails')) {
 		echo "access denied";
 		exit;
 	}

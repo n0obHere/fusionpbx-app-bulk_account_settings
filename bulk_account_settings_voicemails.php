@@ -25,15 +25,12 @@
 */
 
 //includes files
-	require_once dirname(__DIR__, 2) . '/resources/require.php';
-	require_once dirname(__DIR__, 2) . '/resources/check_auth.php';
-	require_once dirname(__DIR__, 2) . '/resources/paging.php';
+	require_once dirname(__DIR__, 2) . "/resources/require.php";
+	require_once "resources/check_auth.php";
+	require_once "resources/paging.php";
 
 //check permissions
-	if (permission_exists('bulk_account_settings_voicemails')) {
-		//access granted
-	}
-	else {
+	if (!permission_exists('bulk_account_settings_voicemails')) {
 		echo "access denied";
 		exit;
 	}
@@ -42,9 +39,11 @@
 	$language = new text;
 	$text = $language->get();
 
-//set default domain, user, option, and action choices
+//set domain and user uuids
 	$domain_uuid = $_SESSION['domain_uuid'] ?? '';
 	$user_uuid = $_SESSION['user_uuid'] ?? '';
+
+//set valid option and action choices
 	$voicemail_options = [];
 	$voicemail_options[] = 'voicemail_file';
 	$voicemail_options[] = 'voicemail_enabled';
@@ -105,6 +104,7 @@
 
 //handle search term
 	$parameters = [];
+	$sql_mod = '';
 	$search = preg_replace('#[^a-zA-Z0-9_]#', '', $_GET["search"] ?? '');
 	if (strlen($search) > 0) {
 		$sql_mod = "and ( ";
@@ -136,19 +136,16 @@
 	}
 
 //prepare to page the results
-	$rows_per_page = $settings->get('domain', 'paging', 50);
-	if ($rows_per_page > 0) {
-		$param = "&search=".$search."&option_selected=".$option_selected;
-		if (!isset($_GET['page'])) { $_GET['page'] = 0; }
-		$_GET['page'] = check_str($_GET['page']);
-		list($paging_controls_mini, $rows_per_page, $var_3) = paging($total_voicemails, $param, $rows_per_page, true); //top
-		list($paging_controls, $rows_per_page, $var_3) = paging($total_voicemails, $param, $rows_per_page); //bottom
-		$offset = $rows_per_page * $_GET['page'];
-	}
+	$rows_per_page = intval($settings->get('domain', 'paging', 50));
+	$param = (!empty($search) ? "&search=".$search : '').(!empty($option_selected) ? "&option_selected=".$option_selected : '');
+	$page = intval(preg_replace('#[^0-9]#', '', $_GET['page'] ?? 0));
+	list($paging_controls, $rows_per_page) = paging($total_voicemails, $param, $rows_per_page);
+	list($paging_controls_mini, $rows_per_page) = paging($total_voicemails, $param, $rows_per_page, true);
+	$offset = $rows_per_page * $page;
 
 //voicemail options
-	if (preg_match ('/option_(.)/',$option_selected)) {
-		preg_match ('/option_(.)/',$option_selected, $matches);
+	if (preg_match('/voicemail_option_(.)/', $option_selected)) {
+		preg_match('/voicemail_option_(.)/', $option_selected, $matches);
 		$option_number = $matches[1];
 	}
 
@@ -174,35 +171,34 @@
 	}
 	$parameters['domain_uuid'] = $domain_uuid;
 	$result = $database->select($sql, $parameters, 'all');
-	if (!empty($result)) {
-		$directory = $result;
-	} else {
-		$directory = [];
-	}
+	$voicemails = !empty($result) ? $result : [];
+	unset($parameters);
 
 //lookup the options
-	foreach ($directory as $key => $row) {
+	foreach ($voicemails as $key => $row) {
+		$parameters = [];
 		$sql = "SELECT voicemail_option_param, voicemail_option_order ";
 		$sql .= "FROM v_voicemail_options ";
 		$sql .= "WHERE domain_uuid = :domain_uuid ";
-		$sql .= "AND voicemail_uuid = :voicemail_uuid ";
-		$sql .= "AND voicemail_option_digits = :voicemail_option_digits ";
-		$parameters = [];
+		if (!empty($row['voicemail_uuid']) && is_uuid($row['voicemail_uuid'])) {
+			$sql .= "AND voicemail_uuid = :voicemail_uuid ";
+			$parameters['voicemail_uuid'] = $row['voicemail_uuid'];
+		}
+		if (isset($option_number)) {
+			$sql .= "AND voicemail_option_digits = :voicemail_option_digits ";
+			$parameters['voicemail_option_digits'] = $option_number;
+		}
 		$parameters['domain_uuid'] = $domain_uuid;
-		$parameters['voicemail_uuid'] = $voicemail_uuid;
-		$parameters['voicemail_option_digits'] = $option_number;
 		$result = $database->select($sql, $parameters, 'all');
-		$directory[$key]['option_db_value'] = $result;
+		if (!empty($result) && is_array($result)) {
+			$voicemails[$key]['option_db_value'] = $result;
+		}
+		unset($parameters);
 	}
 
 //additional includes
 	require_once "resources/header.php";
-	$document['title'] = $text['title-voicemails_settings'];
-
-//set the alternating styles
-	$c = 0;
-	$row_style["0"] = "row_style0";
-	$row_style["1"] = "row_style1";
+	$document['title'] = $text['title-voicemail_settings'];
 
 //initialize the destinations object
 	$destination = new destinations;
@@ -211,32 +207,16 @@
 	echo "<div class='action_bar' id='action_bar'>\n";
 	echo "	<div class='heading'>\n";
 	echo "		<b>".$text['header-voicemails']."</b><div class='count'>".number_format($total_voicemails)."</div><br><br>\n";
-
-//options list
-	echo "		<form name='frm' method='get' id=option_selected>\n";
-	echo "			<select class='formfld' name='option_selected'  onchange=\"this.form.submit();\">\n";
-	echo "				<option value=''>".$text['label-voicemail_null']."</option>\n";
-	foreach ($voicemail_options as $value) {
-		if ($option_selected === $value) {
-			$selected = ' selected="selected"';
-		} else {
-			$selected = '';
-		}
-		echo "			<option value='$value'$selected>".$text['label-'.$value]."</option>\n";
-	}
-	echo "			</select>\n";
-	echo "		</form>\n";
-	echo "		<br />\n";
-	echo "		".$text['description-voicemail_settings_description']."\n";
+	echo "		".$text['description-voicemail_settings']."\n";
 	echo "	</div>\n";
 
 	echo "	<div class='actions'>\n";
 	echo "		<form method='get' action=''>\n";
-	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$_SESSION['theme']['button_icon_back'],'id'=>'btn_back','style'=>'margin-right: 15px; position: sticky; z-index: 5;','onclick'=>"window.location='bulk_account_settings.php'"]);
-	echo "			<input type='text' class='txt' style='width: 150px' name='search' id='search' value='".escape($search)."' placeholder=\"".$text['label-search']."\" onkeydown=''>";
+	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$settings->get('theme', 'button_icon_back'),'id'=>'btn_back','style'=>'margin-right: 15px; position: sticky; z-index: 5;','onclick'=>"window.location='bulk_account_settings.php'"]);
+	echo 			"<input type='text' class='txt list-search' name='search' id='search' style='margin-left: 0 !important;' value=\"".escape($search)."\" placeholder=\"".$text['label-search']."\" onkeydown=''>";
 	echo "			<input type='hidden' class='txt' style='width: 150px' name='option_selected' id='option_selected' value='".escape($option_selected)."'>";
 	echo "			<form id='form_search' class='inline' method='get'>\n";
-	echo button::create(['label'=>$text['button-search'],'icon'=>$_SESSION['theme']['button_icon_search'],'type'=>'submit','id'=>'btn_search']);
+	echo button::create(['label'=>$text['button-search'],'icon'=>$settings->get('theme', 'button_icon_search'),'type'=>'submit','id'=>'btn_search']);
 	if (!empty($paging_controls_mini)) {
 		echo "			<span style='margin-left: 15px;'>".$paging_controls_mini."</span>\n";
 	}
@@ -246,150 +226,182 @@
 	echo "	<div style='clear: both;'></div>\n";
 	echo "</div>\n";
 
-	if (strlen($option_selected) > 0) {
-		echo "<form name='voicemails' method='post' action='bulk_account_settings_voicemails_update.php'>\n";
-		echo "<input class='formfld' type='hidden' name='option_selected' maxlength='255' value=\"$option_selected\">\n";
-		echo "<table width='auto' border='0' cellpadding='0' cellspacing='0'>\n";
-		echo "<tr>\n";
-		//option is Password
-		if($option_selected == 'voicemail_password') {
-			echo "<td class='vtable' align='left'>\n";
-			echo "    <input class='formfld' type='password' name='new_setting' id='password' autocomplete='off' onmouseover=\"this.type='text';\" onfocus=\"this.type='text';\" onmouseout=\"if (!$(this).is(':focus')) { this.type='password'; }\" onblur=\"this.type='password';\" autocomplete='off' maxlength='50' value=\"$new_setting\">\n";
+//options list
+	echo "<div class='card'>\n";
+	echo "<div class='form_grid'>\n";
 
-			echo "<br />\n";
-			echo $text["description-".$option_selected.""]."\n";
-			echo "</td>\n";
-		}
-		//option is voicemail_enabled or voicemail_local_after_email or voicemail_transcription_enabled
-		if($option_selected == 'voicemail_enabled' || $option_selected == 'voicemail_local_after_email' || $option_selected == 'voicemail_transcription_enabled') {
-			echo "<td class='vtable' align='left'>\n";
-			echo "    <select class='formfld' name='new_setting'>\n";
-			echo "    <option value='true'>".$text['label-true']."</option>\n";
-			echo "    <option value='false'>".$text['label-false']."</option>\n";
-			echo "    </select>\n";
-			echo "    <br />\n";
-			echo $text["description-".$option_selected.""]."\n";
-			echo "</td>\n";
-		}
-		//option is voicemail_file
-		if($option_selected == 'voicemail_file') {
-			echo "<td class='vtable' align='left'>\n";
-			echo "    <select class='formfld' name='new_setting'>\n";
-			echo "    <option value='listen'>".$text['option-voicemail_file_listen']."</option>\n";
-			echo "    <option value='link'>".$text['option-voicemail_file_link']."</option>\n";
-			echo "    <option value='attach'>".$text['option-voicemail_file_attach']."</option>\n";
-			echo "    </select>\n";
-			echo "    <br />\n";
-			echo $text["description-".$option_selected.""]."\n";
-			echo "</td>\n";
-		}
-		//option is voicemail_option
-		if (preg_match ('/option_/',$option_selected)) {
-			echo "<td class='vtable' align='left'>\n";
-			echo "    <select class='formfld' name='option_action' onchange=\"$('.add_option').slideToggle();\">\n";
-			echo "    <option value='add'>".$text['label-add']."</option>\n";
-			echo "    <option value='remove'>".$text['label-remove']."</option>\n";
-			echo "    </select><br>\n";
-			echo "	  ".$text["label-".$option_selected.""]."\n";
-			echo "</td>\n";
+	echo "	<div class='form_set'>\n";
+	echo "		<div class='label'>\n";
+	echo "			".$text['label-setting']."\n";
+	echo "		</div>\n";
+	echo "		<div class='field'>\n";
+	echo "			<form name='frm' method='get' id='option_selected'>\n";
+	echo "			<select class='formfld' name='option_selected' onchange=\"this.form.submit();\">\n";
+	echo "				<option value=''></option>\n";
+	foreach ($voicemail_options as $option) {
+		echo "			<option value='".$option."' ".($option_selected === $option ? "selected='selected'" : null).">".$text['label-'.$option]."</option>\n";
+	}
+	echo "  		</select>\n";
+	echo "			</form>\n";
+	echo "		</div>\n";
+	echo "	</div>\n";
 
-			echo "<td class='vtable add_option' align='left' nowrap='nowrap'>\n";
-			echo $destination->select('ivr', 'voicemail_option_param', '');
-			echo "<br>".$text['label-destination']."</td>\n";
-			echo "<td class='vtable add_option' align='left'>\n";
-			echo "	<select name='voicemail_option_order' class='formfld' style='width:55px'>\n";
+	if (!empty($option_selected)) {
+
+		echo "	<div class='form_set'>\n";
+		echo "		<div class='label'>\n";
+		echo "			".$text['label-value']."";
+		echo "		</div>\n";
+		echo "		<div class='field'>\n";
+
+		echo "			<form name='voicemails' method='post' action='bulk_account_settings_voicemails_update.php'>\n";
+		echo "			<input class='formfld' type='hidden' name='option_selected' maxlength='255' value=\"".escape($option_selected)."\">\n";
+
+		//password
+		if ($option_selected == 'voicemail_password') {
+			echo "		<input class='formfld' type='password' name='new_setting' id='password' autocomplete='off' onmouseover=\"this.type='text';\" onfocus=\"this.type='text';\" onmouseout=\"if (!$(this).is(':focus')) { this.type='password'; }\" onblur=\"this.type='password';\" autocomplete='off' maxlength='50'>\n";
+		}
+
+		//voicemail_enabled, voicemail_local_after_email, voicemail_transcription_enabled
+		if ($option_selected == 'voicemail_enabled' || $option_selected == 'voicemail_local_after_email' || $option_selected == 'voicemail_transcription_enabled') {
+			echo "		<select class='formfld' name='new_setting'>\n";
+			echo "			<option value='true'>".$text['label-true']."</option>\n";
+			echo "			<option value='false'>".$text['label-false']."</option>\n";
+			echo "		</select>\n";
+		}
+
+		//voicemail_file
+		if ($option_selected == 'voicemail_file') {
+			echo "		<select class='formfld' name='new_setting'>\n";
+			echo "			<option value='listen'>".$text['option-voicemail_file_listen']."</option>\n";
+			echo "			<option value='link'>".$text['option-voicemail_file_link']."</option>\n";
+			echo "			<option value='attach'>".$text['option-voicemail_file_attach']."</option>\n";
+			echo "		</select>\n";
+		}
+
+		//voicemail_option
+		if (preg_match('/option_/', $option_selected)) {
+			echo "		<select class='formfld' name='option_action' onchange=\"$('.add_option').slideToggle();\">\n";
+			echo "			<option value='add'>".$text['label-add']."</option>\n";
+			echo "			<option value='remove'>".$text['label-remove']."</option>\n";
+			echo "		</select><br>\n";
+
+			echo "<div class='add_option'>\n";
+			echo "	<br>\n";
+			echo $destination->select('ivr', 'voicemail_option_param', '', $text['label-destination'])."<br>\n";
+
+			echo "	<select class='formfld' name='voicemail_option_order' style='width: 70px'>\n";
+			echo "		<option value='' selected='selected' disabled='disabled'>".$text['label-order']."</option>\n";
 			if (strlen(htmlspecialchars($voicemail_option_order))> 0) {
 				echo "	<option selected='yes' value='".htmlspecialchars($voicemail_option_order)."'>".htmlspecialchars($voicemail_option_order)."</option>\n";
 			}
-			$i=0;
-			for ($i = 0; $i<=999; $i++) {
+			$i = 0;
+			for ($i = 0; $i <= 999; $i++) {
 				//set to 3 digit display with character '0' prefixed
 				$padded_i = str_pad($i, 3, "0", STR_PAD_LEFT);
-				echo "	<option value='$padded_i'>$padded_i</option>\n";
+				echo "	<option value='".$padded_i."'>".$padded_i."</option>\n";
 			}
 			echo "	</select><br>\n";
-			echo "".$text['label-order']."</td>\n";
-			echo "<td class='vtable add_option' align='left'>\n";
-			echo "	<input class='formfld' style='width:100px' type='text' name='voicemail_option_description' maxlength='255' value=\"".$voicemail_option_description."\">\n";
-			echo "<br>".$text['label-description']."</td>\n";
+
+			echo "	<input class='formfld' style='width: 100px' type='text' name='voicemail_option_description' maxlength='255' placeholder=\"".$text['label-description']."\">\n";
+
+			echo "</div>\n";
 		}
 
-		echo "<td align='left'>\n";
-		echo "<input type='button' class='btn' alt='".$text['button-submit']."' onclick=\"if (confirm('".$text['confirm-update']."')) { document.forms.voicemails.submit(); }\" value='".$text['button-submit']."'>\n";
-		echo "</td>\n";
-		echo "</tr>\n";
-		echo "</table>";
-		echo "<br />";
-	}
 
-	echo "<div class='card'>\n";
-	echo "<table class='tr_hover' width='100%' border='0' cellpadding='0' cellspacing='0'>\n";
-	echo "<tr>\n";
-	if (!empty($directory)) {
-		echo "<th style='width: 30px; text-align: center; padding: 0px;'><input type='checkbox' id='chk_all' onchange=\"(this.checked) ? check('all') : check('none');\"></th>";
-	}
-	echo th_order_by('voicemail_id', $text['label-voicemail_id'], $order_by,$order,'','',"option_selected=".$option_selected."&search=".$search."");
-	if (preg_match ('/option_/',$option_selected)) {
-		echo th_order_by('voicemail_id', $text["label-".$option_selected.""], $order_by, $order,'','',"option_selected=".$option_selected."&search=".$search."");
+		echo "		</div>\n";
+		echo "	</div>\n";
+
+		echo "</div>\n";
+
+		// echo "<input type='button' class='btn' alt='".$text['button-submit']."' onclick=\"if (confirm('".$text['confirm-update']."')) { document.forms.voicemails.submit(); }\" value='".$text['button-submit']."'>\n";
+		echo "<div style='display: flex; justify-content: flex-end; padding-top: 15px; margin-left: 20px; white-space: nowrap;'>\n";
+		echo button::create(['label'=>$text['button-reset'],'icon'=>$settings->get('theme', 'button_icon_reset'),'type'=>'button','style'=>($option_selected == 'group' ? "margin-right: 15px;" : null),'link'=>'bulk_account_settings_voicemails.php']);
+		echo button::create(['label'=>$text['button-update'],'icon'=>$settings->get('theme', 'button_icon_save'),'type'=>'submit','id'=>'btn_update','click'=>"if (confirm('".$text['confirm-update_voicemails']."')) { document.forms.voicemails.submit(); }"]);
+		echo "</div>\n";
+
 	}
 	else {
-		echo th_order_by('voicemail_id', $text['label-voicemail_file'], $order_by, $order,'','',"option_selected=".$option_selected."&search=".$search."");
-		echo th_order_by('voicemail_id', $text['label-voicemail_local_after_email'], $order_by, $order,'','',"option_selected=".$option_selected."&search=".$search."");
-		if($_SESSION['voicemail']['transcribe_enabled']['boolean'] == "true") {
-			echo th_order_by('voicemail_id', $text['label-voicemail_transcription_enabled'], $order_by, $order,'','',"option_selected=".$option_selected."&search=".$search."");
+		echo "</div>\n";
+	}
+
+	echo "</div>\n";
+	echo "<br />\n";
+
+	echo "<div class='card'>\n";
+	echo "<table class='list'>\n";
+	echo "<tr class='list-header'>\n";
+	if (!empty($voicemails)) {
+		echo "<th style='width: 30px; text-align: center; padding: 0px;'><input type='checkbox' id='chk_all' onchange=\"(this.checked) ? check('all') : check('none');\"></th>";
+	}
+	echo th_order_by('voicemail_id', $text['label-voicemail_id'], $order_by, $order, null, null, $param);
+	if (preg_match('/option_/', $option_selected)) {
+		echo th_order_by('voicemail_id', $text["label-".$option_selected], $order_by, $order, null, null, $param);
+	}
+	else {
+		echo th_order_by('voicemail_file', $text['label-voicemail_file'], $order_by, $order, null, null, $param);
+		echo th_order_by('voicemail_local_after_email', $text['label-voicemail_local_after_email'], $order_by, $order, null, "class='center'", $param);
+		if ($settings->get('voicemail', 'transcribe_enabled') == true) {
+			echo th_order_by('voicemail_transcription_enabled', $text['label-voicemail_transcription_enabled'], $order_by, $order, null, null, $param);
 		}
 	}
-	echo th_order_by('voicemail_id', $text['label-voicemail_enabled'], $order_by, $order,'','',"option_selected=".$option_selected."&search=".$search."");
-	echo th_order_by('voicemail_id', $text['label-voicemail_description'], $order_by, $order,'','',"option_selected=".$option_selected."&search=".$search."");
+	echo th_order_by('voicemail_enabled', $text['label-voicemail_enabled'], $order_by, $order, null, "class='center'", $param);
+	echo th_order_by('voicemail_description', $text['label-voicemail_description'], $order_by, $order, null, null, $param);
 	echo "</tr>\n";
 
 	$ext_ids = [];
-	foreach($directory as $row) {
-		$tr_link = (permission_exists('voicemail_edit')) ? " href='/app/voicemails/voicemail_edit.php?id=".escape($row['voicemail_uuid'])."'" : null;
-		echo "<tr ".$tr_link.">\n";
-
-		echo "	<td valign='top' class='".$row_style[$c]." tr_link_void' style='text-align: center; vertical-align: middle; padding: 0px;'>";
-		echo "		<input type='checkbox' name='id[]' id='checkbox_".escape($row['voicemail_uuid'])."' value='".escape($row['voicemail_uuid'])."' onclick=\"if (!this.checked) { document.getElementById('chk_all').checked = false; }\">";
-		echo "	</td>";
-		$ext_ids[] = 'checkbox_'.$row['voicemail_uuid'];
-
-		echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row['voicemail_id'])."&nbsp;</td>\n";
-		if (preg_match ('/option_/',$option_selected)) {
-			echo "	<td valign='top' class='".$row_style[$c]."'>\n";
-				$x = 0;
-				foreach($row['option_db_value'] as $value) {
-					if ($x++ > 0) {
-						echo ", ";
+	if (!empty($voicemails)) {
+		foreach ($voicemails as $row) {
+			$list_row_url = permission_exists('voicemail_edit') ? "/app/voicemails/voicemail_edit.php?id=".escape($row['voicemail_uuid']) : null;
+			echo "<tr class='list-row' href='".$list_row_url."'>\n";
+			echo "	<td class='checkbox'>";
+			echo "		<input type='checkbox' name='id[]' id='checkbox_".escape($row['voicemail_uuid'])."' value='".escape($row['voicemail_uuid'])."' onclick=\"if (!this.checked) { document.getElementById('chk_all').checked = false; }\">";
+			echo "	</td>";
+			$ext_ids[] = 'checkbox_'.$row['voicemail_uuid'];
+			echo "	<td><a href='".$list_row_url."'>".escape($row['voicemail_id'])."</a></td>\n";
+			if (preg_match('/option_/', $option_selected)) {
+				echo "	<td>\n";
+				if (!empty($row['option_db_value']) && is_array($row['option_db_value'])) {
+					foreach ($row['option_db_value'] as $v => $value) {
+						if ($v != 0) {
+							echo ", ";
+						}
+						echo $value['voicemail_option_param']." (".$value['voicemail_option_order'].")";
 					}
-					echo $value['voicemail_option_param']." (Order: ".$value['voicemail_option_order'].")";
 				}
-			echo "&nbsp;</td>\n";
-		}
-
-		else {
-			echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row['voicemail_file'])."&nbsp;</td>\n";
-			echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row['voicemail_local_after_email'])."&nbsp;</td>\n";
-			if($_SESSION['voicemail']['transcribe_enabled']['boolean'] == "true") {
-				echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row['voicemail_transcription_enabled'])."&nbsp;</td>\n";
+				echo "&nbsp;</td>\n";
 			}
+
+			else {
+				echo "	<td>\n";
+				switch ($row['voicemail_file']) {
+					case 'listen': echo $text['option-voicemail_file_listen']; break;
+					case 'link': echo $text['option-voicemail_file_link']; break;
+					case 'attach': echo $text['option-voicemail_file_attach']; break;
+				}
+				echo "&nbsp;</td>\n";
+				echo "	<td class='center'>".$text['label-'.(!empty($row['voicemail_local_after_email']) ? 'true' : 'false')]."&nbsp;</td>\n";
+				if ($settings->get('voicemail','transcribe_enabled') == true) {
+					echo "	<td> ".escape($row['voicemail_transcription_enabled'])."&nbsp;</td>\n";
+				}
+			}
+			echo "	<td class='center'>".$text['label-'.(!empty($row['voicemail_enabled']) ? 'true' : 'false')]."&nbsp;</td>\n";
+			echo "	<td>".escape($row['voicemail_description'])."</td>\n";
+			echo "</tr>\n";
 		}
-		echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row['voicemail_enabled'])."&nbsp;</td>\n";
-		echo "	<td valign='top' class='".$row_style[$c]."'> ".escape($row['voicemail_description'])."</td>\n";
-		echo "</tr>\n";
-		$c = ($c) ? 0 : 1;
 	}
 	echo "</table>\n";
 	echo "</div>\n";
 	echo "</form>\n";
 
-	if (strlen($paging_controls) > 0) {
+	if (!empty($paging_controls)) {
 		echo "<br />";
 		echo $paging_controls."\n";
 	}
-	echo "<br /><br />".((is_array($directory)) ? "<br /><br />" : null);
+	echo "<br /><br />".(!empty($voicemails) ? "<br /><br />" : null);
 
 	// check or uncheck all checkboxes
-	if (sizeof($ext_ids) > 0) {
+	if (!empty($ext_ids)) {
 		echo "<script>\n";
 		echo "	function check(what) {\n";
 		echo "		document.getElementById('chk_all').checked = (what == 'all') ? true : false;\n";
@@ -400,7 +412,7 @@
 		echo "</script>\n";
 	}
 
-	if (is_array($directory)) {
+	if (!empty($voicemails)) {
 		// check all checkboxes
 		key_press('ctrl+a', 'down', 'document', null, null, "check('all');", true);
 
