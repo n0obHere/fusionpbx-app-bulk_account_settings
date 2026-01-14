@@ -27,6 +27,9 @@
 		$y++;		
 		$apps[$x]['permissions'][$y]['name'] = "bulk_account_settings_voicemails";
 		$apps[$x]['permissions'][$y]['groups'][] = "superadmin";
+		$y++;
+		$apps[$x]['permissions'][$y]['name'] = "bulk_account_settings_destinations";
+		$apps[$x]['permissions'][$y]['groups'][] = "superadmin";
 		$y++;		
 		$apps[$x]['permissions'][$y]['name'] = "bulk_account_settings_view";
 		$apps[$x]['permissions'][$y]['groups'][] = "superadmin";

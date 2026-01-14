@@ -46,6 +46,7 @@
 	echo "<div class='action_bar' id='action_bar'>\n";
 	echo "	<div class='heading'><b>".$text['header-bulk_account_settings']."</b></div>\n";
 	echo "	<div class='actions'>\n";
+	echo "<a href='bulk_account_settings_destinations.php'>".button::create(['type'=>'button','label'=>$text['button-destinations'],'icon'=>'location-arrow'])."</a>";
 	echo "<a href='bulk_account_settings_devices.php'>".button::create(['type'=>'button','label'=>$text['button-devices'],'icon'=>'mobile-retro'])."</a>";
 	echo "<a href='bulk_account_settings_extensions.php'>".button::create(['type'=>'button','label'=>$text['button-extensions'],'icon'=>'suitcase'])."</a>";
 	echo "<a href='bulk_account_settings_users.php'>".button::create(['type'=>'button','label'=>$text['button-users'],'icon'=>'user-group'])."</a>";

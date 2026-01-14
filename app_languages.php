@@ -2917,3 +2917,87 @@ $text['message-password_requirements']['tr-tr'] = "parola gereksinimleri";
 $text['message-password_requirements']['zh-cn'] = "密码要求";
 $text['message-password_requirements']['ja-jp'] = "パスワード要件";
 $text['message-password_requirements']['ko-kr'] = "비밀번호";
+
+$text['button-destinations']['en-us'] = "Destinations";
+$text['button-destinations']['en-gb'] = "Destinations";
+$text['button-destinations']['de-de'] = "Ziele";
+$text['button-destinations']['fr-fr'] = "Destinations";
+$text['button-destinations']['es-mx'] = "Destinos";
+$text['button-destinations']['pt-br'] = "Destinos";
+
+$text['header-destinations']['en-us'] = "Destinations";
+$text['header-destinations']['en-gb'] = "Destinations";
+$text['header-destinations']['de-de'] = "Ziele";
+$text['header-destinations']['fr-fr'] = "Destinations";
+$text['header-destinations']['es-mx'] = "Destinos";
+$text['header-destinations']['pt-br'] = "Destinos";
+
+$text['title-destination_settings']['en-us'] = "Destination Settings";
+$text['title-destination_settings']['en-gb'] = "Destination Settings";
+$text['title-destination_settings']['de-de'] = "Zieleinstellungen";
+$text['title-destination_settings']['fr-fr'] = "Paramètres de destination";
+$text['title-destination_settings']['es-mx'] = "Configuración de destino";
+$text['title-destination_settings']['pt-br'] = "Configurações de destino";
+
+$text['description-destination_settings']['en-us'] = "Select the Setting to modify. Then define (or select) the new Value to update the checked Destinations.";
+$text['description-destination_settings']['en-gb'] = "Select the Setting to modify. Then define (or select) the new Value to update the checked Destinations.";
+$text['description-destination_settings']['de-de'] = "Wählen Sie die zu ändernde Einstellung. Definieren (oder wählen) Sie dann den neuen Wert, um die ausgewählten Ziele zu aktualisieren.";
+$text['description-destination_settings']['fr-fr'] = "Sélectionnez le paramètre à modifier. Définissez ensuite (ou sélectionnez) la nouvelle valeur pour mettre à jour les destinations sélectionnées.";
+$text['description-destination_settings']['es-mx'] = "Seleccione la configuración que desea modificar. A continuación, defina (o seleccione) el nuevo valor para actualizar los destinos seleccionados.";
+$text['description-destination_settings']['pt-br'] = "Selecione a configuração a ser modificada. Em seguida, defina (ou selecione) o novo valor para atualizar os destinos selecionados.";
+
+$text['confirm-update_destinations']['en-us'] = "You are about to update the checked Destinations. Do you wish to continue?";
+$text['confirm-update_destinations']['en-gb'] = "You are about to update the checked Destinations. Do you wish to continue?";
+$text['confirm-update_destinations']['de-de'] = "Sie sind dabei, die ausgewählten Ziele zu aktualisieren. Möchten Sie fortfahren?";
+$text['confirm-update_destinations']['fr-fr'] = "Vous êtes sur le point de mettre à jour les destinations sélectionnées. Souhaitez-vous continuer ?";
+$text['confirm-update_destinations']['es-mx'] = "Está a punto de actualizar los destinos seleccionados. ¿Desea continuar?";
+$text['confirm-update_destinations']['pt-br'] = "Você está prestes a atualizar os destinos selecionados. Deseja continuar?";
+
+$text['label-destination_actions']['en-us'] = "Action";
+$text['label-destination_actions']['en-gb'] = "Action";
+$text['label-destination_actions']['de-de'] = "Aktion";
+$text['label-destination_actions']['fr-fr'] = "Action";
+$text['label-destination_actions']['es-mx'] = "Acción";
+$text['label-destination_actions']['pt-br'] = "Ação";
+
+$text['label-destination_hold_music']['en-us'] = "Hold Music";
+$text['label-destination_hold_music']['en-gb'] = "Hold Music";
+$text['label-destination_hold_music']['de-de'] = "Wartemusik";
+$text['label-destination_hold_music']['fr-fr'] = "Musique d'attente";
+$text['label-destination_hold_music']['es-mx'] = "Música en espera";
+$text['label-destination_hold_music']['pt-br'] = "Música de espera";
+
+$text['label-destination_record']['en-us'] = "Record";
+$text['label-destination_record']['en-gb'] = "Record";
+$text['label-destination_record']['de-de'] = "Aufnehmen";
+$text['label-destination_record']['fr-fr'] = "Enregistrer";
+$text['label-destination_record']['es-mx'] = "Grabar";
+$text['label-destination_record']['pt-br'] = "Gravar";
+
+$text['label-destination_accountcode']['en-us'] = "Account Code";
+$text['label-destination_accountcode']['en-gb'] = "Account Code";
+$text['label-destination_accountcode']['de-de'] = "Kontonummer";
+$text['label-destination_accountcode']['fr-fr'] = "Code de compte";
+$text['label-destination_accountcode']['es-mx'] = "Código de cuenta";
+$text['label-destination_accountcode']['pt-br'] = "Código da conta";
+
+$text['label-destination_cid_name_prefix']['en-us'] = "CID Name Prefix";
+$text['label-destination_cid_name_prefix']['en-gb'] = "CID Name Prefix";
+$text['label-destination_cid_name_prefix']['de-de'] = "CID-Namenspräfix";
+$text['label-destination_cid_name_prefix']['fr-fr'] = "Préfixe du nom CID";
+$text['label-destination_cid_name_prefix']['es-mx'] = "Prefijo del nombre CID";
+$text['label-destination_cid_name_prefix']['pt-br'] = "Prefixo do nome CID";
+
+$text['label-destination_enabled']['en-us'] = "Enabled";
+$text['label-destination_enabled']['en-gb'] = "Enabled";
+$text['label-destination_enabled']['de-de'] = "Aktiviert";
+$text['label-destination_enabled']['fr-fr'] = "Activé";
+$text['label-destination_enabled']['es-mx'] = "Habilitado";
+$text['label-destination_enabled']['pt-br'] = "Habilitado";
+
+$text['label-destination_number']['en-us'] = "Destination Number";
+$text['label-destination_number']['en-gb'] = "Destination Number";
+$text['label-destination_number']['de-de'] = "Zielnummer";
+$text['label-destination_number']['fr-fr'] = "Numéro de destination";
+$text['label-destination_number']['es-mx'] = "Número de destino";
+$text['label-destination_number']['pt-br'] = "Número de destino";
